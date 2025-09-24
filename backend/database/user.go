@@ -45,8 +45,14 @@ type Customer struct {
 }
 
 func AddUser(username string, password string, role UserRole) error {
+	if len(username) == 0 {
+		return errors.New("username cannot be empty")
+	}
 	if len(username) > 100 {
 		return errors.New("username is too long (max 100)")
+	}
+	if len(password) == 0 {
+		return errors.New("password cannot be empty")
 	}
 
 	salt, err := generateSalt(128)

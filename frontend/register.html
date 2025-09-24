@@ -40,7 +40,7 @@
 
     <input type="checkbox" id="no_birth_date" name="no_birth_date" value="true">
     <label for="no_birth_date">I do not want to share my birth date</label><br><br>
-
+    
 
     <label for="address">Your address:</label><br>
     <input type="text" id="address" name="address" required><br>
@@ -66,6 +66,9 @@
     const birthDateInput = document.getElementById("birth_date");
     birthDateCheckbox.addEventListener("change", () => {
         birthDateInput.disabled = birthDateCheckbox.checked;
+        if (birthDateCheckbox.checked){
+            alert("Your birth date is used for special birthday promotions. If you skip it, you may miss out!");
+        }
     });
 
     const genderRadios = document.getElementsByName("gender");

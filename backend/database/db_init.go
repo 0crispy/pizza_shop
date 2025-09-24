@@ -5,6 +5,8 @@ import "log"
 // Used for first-time initialization of the whole database.
 func InitDatabaseDev() {
 	queries := []string{
+		`SET FOREIGN_KEY_CHECKS = 0;`,
+
 		`DROP TABLE IF EXISTS pizza;`,
 		`CREATE TABLE pizza (
 			id INT AUTO_INCREMENT PRIMARY KEY,
@@ -42,6 +44,8 @@ func InitDatabaseDev() {
 
 			FOREIGN KEY (user_id) REFERENCES user(id)
 		)`,
+
+		`SET FOREIGN_KEY_CHECKS = 1;`,
 	}
 
 	for _, query := range queries {
