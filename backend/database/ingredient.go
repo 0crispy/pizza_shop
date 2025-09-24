@@ -8,13 +8,14 @@ import (
 )
 
 type Ingredient struct {
-	Name     string
-	Cost     decimal.Decimal
-	DietType DietType
+	Name              string
+	Cost              decimal.Decimal
+	HasMeat           bool
+	HasAnimalProducts bool
 }
 
-func NewIngredient(name string, costCents int64, dietType DietType) Ingredient {
-	return Ingredient{name, decimal.NewFromInt(costCents).Shift(-2), dietType}
+func NewIngredient(name string, costCents int64, hasMeat bool, hasAnimalProducts bool) Ingredient {
+	return Ingredient{name, decimal.NewFromInt(costCents).Shift(-2), hasMeat, hasAnimalProducts}
 }
 
 type IngredientWithID struct {
@@ -23,12 +24,12 @@ type IngredientWithID struct {
 }
 
 func CreateIngredient(ingr Ingredient) error {
-	_, err := DATABASE.Exec("INSERT INTO ingredient (name, cost, diet_type) VALUES (?, ?, ?)", ingr.Name, ingr.Cost.String(), ingr.DietType.String())
+	_, err := DATABASE.Exec("INSERT INTO ingredient (name, cost, has_meat, has_animal_products) VALUES (?, ?, ?, ?)", ingr.Name, ingr.Cost.String(), ingr.HasMeat, ingr.HasAnimalProducts)
 	return err
 }
 
 func GetAllIngredients() ([]IngredientWithID, error) {
-	rows, err := DATABASE.Query("SELECT id, name, cost, diet_type FROM ingredient")
+	rows, err := DATABASE.Query("SELECT id, name, cost, has_meat, has_animal_products FROM ingredient")
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +41,7 @@ func GetAllIngredients() ([]IngredientWithID, error) {
 		var ingr IngredientWithID
 		var ingr_cost_str string
 
-		err := rows.Scan(&ingr.ID, &ingr.Ingr.Name, &ingr_cost_str, &ingr.Ingr.DietType)
+		err := rows.Scan(&ingr.ID, &ingr.Ingr.Name, &ingr_cost_str, &ingr.Ingr.HasMeat, &ingr.Ingr.HasAnimalProducts)
 		if err != nil {
 			log.Println(err)
 			continue

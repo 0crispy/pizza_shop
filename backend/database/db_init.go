@@ -16,7 +16,16 @@ func InitDatabaseDev() {
 			id INT AUTO_INCREMENT PRIMARY KEY,
 			name VARCHAR(255) NOT NULL UNIQUE,
 			cost DECIMAL(10, 2) NOT NULL,
-			diet_type ENUM('OMNIVORE', 'VEGETARIAN', 'VEGAN') NOT NULL
+			has_meat BOOLEAN NOT NULL,
+			has_animal_products BOOLEAN NOT NULL
+		);`,
+
+		`DROP TABLE IF EXISTS user;`,
+		`CREATE TABLE user(
+			id BIGINT AUTO_INCREMENT PRIMARY KEY,
+			username VARCHAR(100) NOT NULL UNIQUE,
+			password_hash VARCHAR(128) NOT NULL,
+			role ENUM('ADMIN', 'DELIVERY', 'CUSTOMER') NOT NULL
 		);`,
 	}
 
@@ -29,9 +38,9 @@ func InitDatabaseDev() {
 	}
 
 	create_ingredients := []Ingredient{
-		NewIngredient("pepperoni", 101, Omnivore),
-		NewIngredient("cheese", 60, Vegetarian),
-		NewIngredient("jalapeno", 30, Vegan),
+		NewIngredient("pepperoni", 101, true, true),
+		NewIngredient("cheese", 60, false, true),
+		NewIngredient("jalapeno", 30, false, false),
 	}
 
 	for _, ingr := range create_ingredients {
