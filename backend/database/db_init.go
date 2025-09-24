@@ -24,9 +24,24 @@ func InitDatabaseDev() {
 		`CREATE TABLE user(
 			id BIGINT AUTO_INCREMENT PRIMARY KEY,
 			username VARCHAR(100) NOT NULL UNIQUE,
-			password_hash VARCHAR(128) NOT NULL,
+			password_hash VARCHAR(256) NOT NULL,
+			salt VARCHAR(256) NOT NULL,
 			role ENUM('ADMIN', 'DELIVERY', 'CUSTOMER') NOT NULL
 		);`,
+
+		`DROP TABLE IF EXISTS customer;`,
+		`CREATE TABLE customer(
+			id BIGINT AUTO_INCREMENT PRIMARY KEY,
+			user_id BIGINT NOT NULL,
+			name VARCHAR(100) NOT NULL,
+			gender VARCHAR(50) NOT NULL,
+			birth_date DATE,
+			address VARCHAR(256) NOT NULL,
+			postal_code VARCHAR(10) NOT NULL,
+			pizza_counter TINYINT NOT NULL DEFAULT 0,
+
+			FOREIGN KEY (user_id) REFERENCES user(id)
+		)`,
 	}
 
 	for _, query := range queries {
@@ -55,6 +70,10 @@ func InitDatabaseDev() {
 	}
 	for _, ingr := range ingredients {
 		log.Println(ingr)
+	}
+
+	if err := AddUser("admin", "admin", AdminRole); err != nil {
+		log.Fatal(err)
 	}
 
 	log.Println("Database has been initialized.")

@@ -1,0 +1,62 @@
+<h1>Welcome to our pizza shop!!</h1>
+
+
+
+
+<h2>Login</h2>
+<form>
+    <label for="username">Username:</label><br>
+    <input type="text" id="username" name="username" required><br><br>
+
+    <label for="password">Password:</label><br>
+    <input type="password" id="password" name="password" required><br><br>
+
+    <button type="submit" onclick="login(event)">
+        Login
+    </button>
+</form>
+
+
+<p style="color:rgb(255, 75, 75)" id="error"></p>
+
+<a href="/register">No account? Register here</a>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
+<script>
+
+    function prepare(){
+
+    }
+    function login(event){
+        event.preventDefault();
+
+        var usernameInput = document.getElementById("username");
+        var passwordInput = document.getElementById("password");
+
+        var sendData = {
+            username: usernameInput.value,
+            password: passwordInput.value,
+        };
+
+        fetch("/login", {
+            method: "POST",
+            headers: {
+            "Content-Type": "application/json"
+            },
+            body: JSON.stringify(sendData)
+        })
+            .then(response => response.json())
+            .then(data =>{
+                if (data.ok){
+                    window.location = "/home";
+                }
+                else{
+                    console.log(data);
+                    console.log(data.msg);
+                    var errorText = document.getElementById("error");
+                    errorText.innerHTML = data.msg;
+                }
+            });
+    }
+</script>
