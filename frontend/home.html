@@ -43,6 +43,10 @@
 
 <script>
     var connectedAs = document.getElementById("connected_as");
-    connectedAs.innerHTML = "Connected as: " + sessionStorage.getItem("username") + ".";
+    var username = sessionStorage.getItem("username");
+    if (username == null){
+        window.location = "/";
+    }
+    connectedAs.innerHTML = "Connected as: " + username + ".";
 
 </script>
