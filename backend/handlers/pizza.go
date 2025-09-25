@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	database "pizza_shop/backend/database"
@@ -91,13 +90,18 @@ func RegisterPostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	success, msg := database.TryAddCustomer(customer)
-	log.Println(success, msg)
 
 	type Msg struct {
 		Ok  bool   `json:"ok"`
 		Msg string `json:"msg"`
 	}
 
+	sendMsg := Msg{success, msg}
+	jsonMsg, err := json.Marshal(sendMsg)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Fprint(w, string(jsonMsg))
 }
 
 func PizzaHandler(w http.ResponseWriter, r *http.Request) {

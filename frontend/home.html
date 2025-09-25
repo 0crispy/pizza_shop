@@ -1,4 +1,7 @@
 
+<p id="connected_as">Connected as: ?</p>
+
+
 <p>we make our pizza with only the best ingredients</p>
 
 <img src="https://opengameart.org/sites/default/files/Capture_10.png" alt="pizza photo" style="width:30%">
@@ -37,3 +40,9 @@
     <td>Vegan</td>
   </tr>
 </table>
+
+<script>
+    var connectedAs = document.getElementById("connected_as");
+    connectedAs.innerHTML = "Connected as: " + sessionStorage.getItem("username") + ".";
+
+</script>

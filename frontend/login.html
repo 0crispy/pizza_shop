@@ -49,11 +49,11 @@
             .then(response => response.json())
             .then(data =>{
                 if (data.ok){
+                    sessionStorage.setItem("username", usernameInput.value);
+                    sessionStorage.setItem("password", passwordInput.value);
                     window.location = "/home";
                 }
                 else{
-                    console.log(data);
-                    console.log(data.msg);
                     var errorText = document.getElementById("error");
                     errorText.innerHTML = data.msg;
                 }
