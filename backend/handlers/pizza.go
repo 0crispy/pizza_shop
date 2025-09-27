@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	database "pizza_shop/backend/database"
+	"sort"
+	"strings"
 )
 
 func IndexHandler(w http.ResponseWriter, r *http.Request) {
@@ -110,4 +112,68 @@ func PizzaHandler(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 	fmt.Fprintln(w, string(html_string))
+}
+
+func MenuHandler(w http.ResponseWriter, r *http.Request) {
+	pizzas, err := database.GetAllPizzas()
+	if err != nil {
+		http.Error(w, "Failed to load pizzas", http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Fprintln(w, "<h1>Pizza Menu</h1>")
+	fmt.Fprintln(w, `<table border="1" cellpadding="5" cellspacing="0">`)
+	fmt.Fprintln(w, "<tr><th>Pizza Name</th><th>Cost</th><th>Ingredients</th><th>Diet Info</th></tr>")
+
+	// sort.Slice(pizzas, func(i, j int) bool {
+	// 	// Sort ascending by price
+	// 	return pizzas[i].Price.LessThan(pizzas[j].Price)
+	// })
+
+	pizzaInfos := []database.PizzaInformation{}
+
+	for _, pizza := range pizzas {
+		info, err := database.GetPizzaInformation(pizza.Name)
+		if err != nil {
+			fmt.Fprintf(w, "<tr><td colspan='4'>Failed to load info for %s</td></tr>", pizza.Name)
+			continue
+		}
+		pizzaInfos = append(pizzaInfos, info)
+	}
+
+	indexes := make([]int, len(pizzas))
+	for i := range indexes {
+		indexes[i] = i
+	}
+
+	sort.Slice(indexes, func(i, j int) bool {
+		return pizzaInfos[indexes[i]].Cost.LessThan(pizzaInfos[indexes[j]].Cost)
+	})
+
+	for _, id := range indexes {
+		pizza := pizzas[id]
+		info := pizzaInfos[id]
+
+		var ingredientNames []string
+		for _, ingr := range pizza.Ingredients {
+			ingredientNames = append(ingredientNames, ingr.Ingr.Name)
+		}
+
+		diet := "Omnivore"
+		if info.IsVegan {
+			diet = "Vegan"
+		} else if info.IsVegetarian {
+			diet = "Vegetarian"
+		}
+
+		fmt.Fprintf(w,
+			"<tr><td>%s</td><td>%s €</td><td>%s</td><td>%s</td></tr>",
+			pizza.Name,
+			info.Cost.StringFixed(2),
+			strings.Join(ingredientNames, ", "),
+			diet,
+		)
+	}
+
+	fmt.Fprintln(w, "</table></body></html>")
 }
