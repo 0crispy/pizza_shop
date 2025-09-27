@@ -18,12 +18,12 @@ DB_PEPPER=some_random_string
     - [ ] Add a view account button (go to /account)
     - [ ] Add a log out button
     - [ ] Admin login screen
-- [ ] Menu
-    - [ ] Menu HTML prototype
-    - [ ] Menu CRUD (pizza, ingredient, etc)
-    - [ ] Display menu on client
-    - [ ] Display vegan/vegetarian
-    - [ ] Calculate price
+- [x] Menu
+    - [x] Menu HTML prototype
+    - [x] Menu CRUD (pizza, ingredient, etc)
+    - [x] Display menu on client
+    - [x] Display vegan/vegetarian
+    - [x] Calculate price
 - [ ] Shopping cart
     - [ ] Cart HTML
     - [ ] Functionality to add pizza to cart
