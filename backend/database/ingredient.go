@@ -101,3 +101,8 @@ func GetIngredient(ingredientName string) (IngredientWithID, error) {
 
 	return ingr, nil
 }
+
+func DeletIngredient(id int) error {
+	_, err := DATABASE.Exec("DELETE FROM ingredeitn WHERE ID = ?", id)
+	return err
+}
