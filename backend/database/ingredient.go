@@ -103,6 +103,6 @@ func GetIngredient(ingredientName string) (IngredientWithID, error) {
 }
 
 func DeleteIngredient(id int) error {
-	_, err := DATABASE.Exec("DELETE FROM ingredeitn WHERE ID = ?", id)
+	_, err := DATABASE.Exec("DELETE FROM ingredient WHERE id = ?", id)
 	return err
 }
