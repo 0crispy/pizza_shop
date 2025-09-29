@@ -15,7 +15,7 @@ DB_PEPPER=some_random_string
 - [x] my sql setup
 - [x] Login/register
 - [ ] Accounts
-    - [ ] Add a view account button (go to /account)
+    - [x] Add a view account button (go to /account)
     - [ ] Add a log out button
     - [ ] Admin login screen
 - [x] Menu
