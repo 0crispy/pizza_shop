@@ -227,6 +227,7 @@ func getUserPasswordAndSalt(username string) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
+	defer rows.Close()
 	if rows.Next() {
 		var salt string
 		var password string
@@ -239,4 +240,44 @@ func getUserPasswordAndSalt(username string) (string, string, error) {
 	} else {
 		return "", "", errors.New("no such user")
 	}
+}
+
+func GetCustomerDetails(username string, password string) (Customer, error) {
+	exists, err := doesUserExist(username)
+	if err != nil {
+		return Customer{}, err
+	}
+	if !exists {
+		return Customer{}, errors.New("customer not found")
+	}
+
+	userID, err := getUserIDFromUsername(username)
+	if err != nil {
+		return Customer{}, err
+	}
+
+	rows, err := DATABASE.Query(
+		"SELECT name, gender, birth_date, address, postal_code FROM customer where user_id = ?",
+		userID,
+	)
+	if err != nil {
+		return Customer{}, err
+	}
+
+	defer rows.Close()
+
+	if rows.Next() {
+		var customer Customer
+		err := rows.Scan(&customer.Name, &customer.Gender, &customer.BirthDate, &customer.Address, &customer.PostCode)
+		if err != nil {
+			return Customer{}, nil
+		}
+		customer.Username = username
+		customer.Password = password
+		return customer, nil
+
+	} else {
+		return Customer{}, errors.New("customer not found")
+	}
+
 }

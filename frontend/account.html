@@ -1,1 +1,65 @@
-<p>Your account</p>
+<!DOCTYPE html>
+
+<h1>Your account:</h1>
+
+<a href="/home">Back to ordering</a><br><br>
+
+<label for="username">Username:</label><br>
+<input type="text" id="username" name="username" disabled="true"></input><br>
+
+<label for="name">Name:</label><br>
+<input type="text" id="name" name="name" disabled="true"></input><br>
+
+<label for="gender">Gender:</label><br>
+<input type="text" id="gender" name="gender" disabled="true"></input><br>
+
+<label for="birth_date">Birth date:</label><br>
+<input type="date" id="birth_date" name="birth_date" disabled="true"></input><br>
+
+<label for="address" >Address:</label><br>
+<input type="text" id="address" name="address" disabled="true" style="width:300px"><br>
+
+<label for="">Postal code:</label><br>
+<input type="text" id="postcode" name="postcode" disabled="true"><br>
+
+
+
+
+
+<script>
+    var username = sessionStorage.getItem("username");
+    if (username == null){
+        window.location = "/";
+    }
+    var password = sessionStorage.getItem("password");
+
+    var sendData = {
+        username:username,
+        password:password,
+    };
+    
+    fetch("/getAccountDetails", {
+        method: "POST",
+        headers: {
+        "Content-Type": "application/json"
+        },
+        body: JSON.stringify(sendData)
+    })
+        .then(response => response.json())
+        .then(data =>{
+            if (data.ok){
+                var c = data.customer;
+                document.getElementById("username").value = c.username;
+                document.getElementById("name").value = c.name;
+                document.getElementById("gender").value = c.gender;
+                if (!c.noBirthDate){
+                    document.getElementById("birth_date").value = c.birthDate;
+                }
+                document.getElementById("address").value = c.address;
+                document.getElementById("postcode").value = c.postcode;
+            }
+            else{
+                window.location = "/home";
+            }
+        });
+</script>

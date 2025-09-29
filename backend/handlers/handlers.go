@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -40,19 +41,12 @@ func LoginGetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func LoginPostHandler(w http.ResponseWriter, r *http.Request) {
-	type User struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
+	success, _, _, err := isLoginOK(r)
 
-	var user User
-	err := json.NewDecoder(r.Body).Decode(&user)
+	msg := ""
 	if err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		return
+		msg = err.Error()
 	}
-
-	success, msg := database.TryLogin(user.Username, user.Password)
 
 	type Msg struct {
 		Ok  bool   `json:"ok"`
@@ -64,6 +58,25 @@ func LoginPostHandler(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 	fmt.Fprint(w, string(jsonMsg))
+}
+
+func isLoginOK(r *http.Request) (bool, string, string, error) {
+	type User struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	var user User
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		return false, "", "", errors.New("invalid json")
+	}
+	success, msg := database.TryLogin(user.Username, user.Password)
+
+	if !success {
+		return false, "", "", errors.New(msg)
+	} else {
+		return true, user.Username, user.Password, nil
+	}
 }
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
@@ -176,4 +189,39 @@ func MenuHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintln(w, "</table></body></html>")
+}
+
+func AccountHandler(w http.ResponseWriter, r *http.Request) {
+	html_string, err := os.ReadFile("frontend/account.html")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Fprintln(w, string(html_string))
+}
+
+func GetAccountDetailsHandler(w http.ResponseWriter, r *http.Request) {
+
+	type CustomerResult struct {
+		Ok       bool              `json:"ok"`
+		Customer database.Customer `json:"customer"`
+	}
+	customerResult := CustomerResult{Ok: false}
+
+	success, username, password, _ := isLoginOK(r)
+
+	if !success {
+		jsonMsg, _ := json.Marshal(customerResult)
+		fmt.Fprint(w, string(jsonMsg))
+		return
+	}
+
+	customer, err := database.GetCustomerDetails(username, password)
+	if err != nil {
+		jsonMsg, _ := json.Marshal(customerResult)
+		fmt.Fprint(w, string(jsonMsg))
+		return
+	}
+	jsonMsg, _ := json.Marshal(CustomerResult{Ok: true, Customer: customer})
+	fmt.Fprint(w, string(jsonMsg))
+
 }

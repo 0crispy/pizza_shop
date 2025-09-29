@@ -19,6 +19,8 @@ func main() {
 	http.HandleFunc("/pizza", handlers.PizzaHandler)
 	http.HandleFunc("/home", handlers.HomeHandler)
 	http.HandleFunc("/menu", handlers.MenuHandler)
+	http.HandleFunc("/account", handlers.AccountHandler)
+	http.HandleFunc("/getAccountDetails", handlers.GetAccountDetailsHandler)
 
 	fmt.Printf("Server running on http://localhost:%s\n", PORT)
 	http.ListenAndServe(fmt.Sprintf(":%s", PORT), nil)

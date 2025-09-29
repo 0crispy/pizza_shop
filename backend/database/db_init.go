@@ -118,6 +118,20 @@ func InitDatabaseDev() {
 		log.Fatal(err)
 	}
 
+	success, msg := TryAddCustomer(Customer{
+		Username:    "walta",
+		Password:    "pasword",
+		Name:        "Walter White",
+		Gender:      "Male",
+		BirthDate:   "1958-09-07",
+		NoBirthDate: false,
+		Address:     "308 Negra Arroyo Lane, Albuquerque, New Mexico ",
+		PostCode:    "87104",
+	})
+	if !success {
+		log.Fatal(msg)
+	}
+
 	log.Println("Database has been initialized.")
 }
 
