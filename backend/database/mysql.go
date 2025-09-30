@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 
@@ -35,7 +36,13 @@ func Init() {
 
 	fmt.Println("Connected to MySQL!")
 
-	InitDatabaseDev()
+	// Control DB reset with env var. If DB_RESET=true/1, drop and reseed.
+	reset := strings.EqualFold(os.Getenv("DB_RESET"), "true") || os.Getenv("DB_RESET") == "1"
+	if reset {
+		InitDatabaseDev()
+	} else {
+		InitDatabaseIfEmpty()
+	}
 }
 
 func Close() {
