@@ -16,7 +16,7 @@ DB_PEPPER=some_random_string
 - [x] Login/register
 - [ ] Accounts
     - [x] Add a view account button (go to /account)
-    - [ ] Add a log out button
+    - [x] Add a log out button
     - [ ] Admin login screen
 - [x] Menu
     - [x] Menu HTML prototype

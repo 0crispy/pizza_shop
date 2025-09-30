@@ -1,6 +1,7 @@
 
 <p id="connected_as">Connected as: ?</p>
-<a href="/account">View account</a>
+<a href="/account">View account</a><br>
+<button onclick="logout()">Log out</button>
 
 <p>we make our pizza with only the best ingredients</p>
 
@@ -42,10 +43,22 @@
 </table>
 
 <script>
+  function logout(){
+    try {
+      sessionStorage.removeItem("username");
+      sessionStorage.removeItem("password");
+    } catch (e) {
+      // ignore storage errors
+    }
+    // Redirect to login with a flag so it can show a message if supported
+    window.location = "/login?logout=1";
+  }
+
     var connectedAs = document.getElementById("connected_as");
     var username = sessionStorage.getItem("username");
     if (username == null){
-        window.location = "/";
+    // Not logged in, go to login
+    window.location = "/login";
     }
     connectedAs.innerHTML = "Connected as: " + username + ".";
 

@@ -24,9 +24,38 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
 <script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.has("logout")) {
+            try {
+                sessionStorage.removeItem("username");
+                sessionStorage.removeItem("password");
+            } catch (e) {
+                //ignore
+            }
+
+            const msgEl = document.getElementById("error");
+            if (msgEl) {
+                alert("You have been logged out.");
+                msgEl.innerText = "You have been logged out.";}
+            
+            const url = new URL(window.location.href);
+            url.searchParams.delete("logout");
+            window.history.replaceState({}, "", url.pathname + (url.search ? ("?" + url.searchParams.toString()) : ""));
+        }
+    });
+
+    function logout() {
+        try {
+            sessionStorage.removeItem("username");
+            sessionStorage.removeItem("password");
+        } catch (e) {
+            //ignore
+        }
+        window.location = "/login";
+    }
 
     function prepare(){
-
     }
     function login(event){
         event.preventDefault();
