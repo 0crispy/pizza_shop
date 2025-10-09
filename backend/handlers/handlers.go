@@ -40,7 +40,6 @@ func LoginGetHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, string(html_string))
 }
 
-
 // Admin UI page (basic panel)
 func AdminHandler(w http.ResponseWriter, r *http.Request) {
 	html_string, err := os.ReadFile("frontend/admin.html")
