@@ -128,6 +128,24 @@ func GetAllPizzas() ([]Pizza, error) {
 	return pizzas, nil
 }
 
+// DeletePizza removes a pizza and its ingredient relations in a transaction.
+func DeletePizza(pizzaID int) error {
+	tx, err := DATABASE.Begin()
+	if err != nil {
+		return err
+	}
+	// Remove relations first
+	if _, err := tx.Exec("DELETE FROM pizza_ingredient WHERE pizza_id = ?", pizzaID); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if _, err := tx.Exec("DELETE FROM pizza WHERE id = ?", pizzaID); err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit()
+}
+
 type PizzaInformation struct {
 	Cost         decimal.Decimal
 	IsVegetarian bool
