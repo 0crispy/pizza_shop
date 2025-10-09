@@ -242,6 +242,23 @@ func getUserPasswordAndSalt(username string) (string, string, error) {
 	}
 }
 
+// GetUserRole returns the role string (e.g., "ADMIN", "DELIVERY", "CUSTOMER") for a given username.
+func GetUserRole(username string) (string, error) {
+	rows, err := DATABASE.Query("SELECT role FROM user WHERE username = ?", username)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var role string
+		if err := rows.Scan(&role); err != nil {
+			return "", err
+		}
+		return role, nil
+	}
+	return "", errors.New("no such user")
+}
+
 func GetCustomerDetails(username string, password string) (Customer, error) {
 	exists, err := doesUserExist(username)
 	if err != nil {
