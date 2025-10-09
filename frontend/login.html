@@ -80,7 +80,12 @@
                 if (data.ok){
                     sessionStorage.setItem("username", usernameInput.value);
                     sessionStorage.setItem("password", passwordInput.value);
-                    window.location = "/home";
+                    if (data.isAdmin){
+                        // Autodetect admin and send to admin panel
+                        window.location = "/admin";
+                    } else {
+                        window.location = "/home";
+                    }
                 }
                 else{
                     var errorText = document.getElementById("error");

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    h2 { margin-top: 24px; }
+    input, button, select { margin: 4px 0; }
+    code { background: #f6f6f6; padding: 2px 4px; }
+  </style>
+</head>
+<body>
+  <h1>Admin Panel</h1>
+  <p><a href="/home">Home</a> | <a href="/login?logout=1">Log out</a></p>
+
+  <div>
+    <label>Admin username</label><br />
+    <input id="adm-user" type="text" /><br />
+    <label>Admin password</label><br />
+    <input id="adm-pass" type="password" /><br />
+    <small>These are sent only to the admin endpoints; use admin/admin in dev.</small>
+  </div>
+
+  <h2>Ingredients</h2>
+  <div>
+    <button onclick="listIngredients()">List ingredients</button>
+    <pre id="ingredients-list"></pre>
+  </div>
+  <div>
+    <h3>Create ingredient</h3>
+    <input id="ingr-name" placeholder="Name" />
+    <input id="ingr-cost" type="number" placeholder="Cost (cents)" />
+    <label><input id="ingr-meat" type="checkbox" /> Has meat</label>
+    <label><input id="ingr-animal" type="checkbox" /> Has animal products</label>
+    <button onclick="createIngredient()">Create</button>
+  </div>
+  <div>
+    <h3>Delete ingredient</h3>
+    <input id="ingr-del-id" type="number" placeholder="Ingredient ID" />
+    <button onclick="deleteIngredient()">Delete</button>
+  </div>
+
+  <h2>Pizzas</h2>
+  <div>
+    <button onclick="listPizzas()">List pizzas</button>
+    <pre id="pizzas-list"></pre>
+  </div>
+  <div>
+    <h3>Create pizza</h3>
+    <input id="pizza-name" placeholder="Pizza name" />
+    <input id="pizza-ingredients" placeholder='Ingredients (comma separated)' />
+    <button onclick="createPizza()">Create</button>
+  </div>
+  <div>
+    <h3>Delete pizza</h3>
+    <input id="pizza-del-id" type="number" placeholder="Pizza ID" />
+    <button onclick="deletePizza()">Delete</button>
+  </div>
+
+  <script>
+    function creds() {
+      return {
+        u: document.getElementById('adm-user').value,
+        p: document.getElementById('adm-pass').value,
+      };
+    }
+    function listIngredients(){
+      fetch('/admin/ingredient/list')
+        .then(r=>r.json())
+        .then(d=>{ document.getElementById('ingredients-list').textContent = JSON.stringify(d, null, 2); });
+    }
+    function createIngredient(){
+      const {u,p} = creds();
+      const body = {
+        username: u,
+        password: p,
+        name: document.getElementById('ingr-name').value,
+        costCents: parseInt(document.getElementById('ingr-cost').value||'0',10),
+        hasMeat: document.getElementById('ingr-meat').checked,
+        hasAnimalProducts: document.getElementById('ingr-animal').checked,
+      };
+      fetch('/admin/ingredient/create', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
+        .then(r=>r.ok?r.json():r.text())
+        .then(d=>{ alert(typeof d==='string'?d:('Created '+d.Ingr?.Name||d.name)); listIngredients(); });
+    }
+    function deleteIngredient(){
+      const {u,p} = creds();
+      const id = document.getElementById('ingr-del-id').value;
+      fetch('/admin/ingredient/delete?id='+encodeURIComponent(id), { method:'DELETE', headers:{'X-Username':u,'X-Password':p} })
+        .then(r=>{ if(r.ok){ alert('Deleted'); listIngredients(); } else { return r.text().then(t=>{ throw new Error(t); }); } })
+        .catch(e=>alert(e.message));
+    }
+    function listPizzas(){
+      fetch('/admin/pizza/list')
+        .then(r=>r.json())
+        .then(d=>{ document.getElementById('pizzas-list').textContent = JSON.stringify(d, null, 2); });
+    }
+    function createPizza(){
+      const {u,p} = creds();
+      const name = document.getElementById('pizza-name').value;
+      const ingredients = (document.getElementById('pizza-ingredients').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+      fetch('/admin/pizza/create', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username:u, password:p, name, ingredients }) })
+        .then(r=>r.ok?r.json():r.text())
+        .then(d=>{ alert(typeof d==='string'?d:('Created '+(d.Name||name))); listPizzas(); });
+    }
+    function deletePizza(){
+      const {u,p} = creds();
+      const id = document.getElementById('pizza-del-id').value;
+      fetch('/admin/pizza/delete?id='+encodeURIComponent(id), { method:'DELETE', headers:{'X-Username':u,'X-Password':p} })
+        .then(r=>{ if(r.ok){ alert('Deleted'); listPizzas(); } else { return r.text().then(t=>{ throw new Error(t); }); } })
+        .catch(e=>alert(e.message));
+    }
+  </script>
+</body>
+</html>

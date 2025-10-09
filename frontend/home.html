@@ -1,65 +1,110 @@
-
-<p id="connected_as">Connected as: ?</p>
-<a href="/account">View account</a><br>
-<button onclick="logout()">Log out</button>
-
-<p>we make our pizza with only the best ingredients</p>
-
-<img src="https://opengameart.org/sites/default/files/Capture_10.png" alt="pizza photo" style="width:30%">
-
-
-<p>Our menu:</p>
-<table>
-  <tr>
-    <th>Pizza</th>
-    <th>Price</th>
-    <th>Diet info</th>
-  </tr>
-  <tr>
-    <td>Margherita</td>
-    <td>$7</td>
-    <td>Vegetarian</td>
-  </tr>
-  <tr>
-    <td>Hawaii</td>
-    <td>$8</td>
-    <td>Vegetarian</td>
-  </tr>
-  <tr>
-    <td>Diavola</td>
-    <td>$10</td>
-    <td>Omnivore</td>
-  </tr>
-  <tr>
-    <td>Quattro Stagioni</td>
-    <td>$10</td>
-    <td>Vegetarian</td>
-  </tr>
-  <tr>
-    <td>Marinara</td>
-    <td>$6</td>
-    <td>Vegan</td>
-  </tr>
-</table>
-
-<script>
-  function logout(){
-    try {
-      sessionStorage.removeItem("username");
-      sessionStorage.removeItem("password");
-    } catch (e) {
-      // ignore storage errors
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pizza Shop - Home</title>
+  <style>
+    :root { --accent: #e63946; --bg: #fafafa; --text: #222; --muted:#666; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color: var(--text); background: var(--bg); }
+    .topbar { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid #eee; background:#fff; position:sticky; top:0; }
+    .brand { font-weight:700; letter-spacing:.2px; }
+    .nav a { margin-right:12px; text-decoration:none; color: var(--text); }
+    .nav a#admin-link { display:none; color:#1d3557; font-weight:600; }
+    .btn { background: var(--accent); color:#fff; border:0; border-radius:6px; padding:8px 12px; cursor:pointer; }
+    .container { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    .hero { display:flex; gap:24px; align-items:center; flex-wrap:wrap; }
+    .hero img { width: 260px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,.06); }
+    h1 { margin: 0 0 8px; }
+    #connected_as { color: var(--muted); margin: 4px 0 16px; }
+    table { width:100%; border-collapse: collapse; background:#fff; border:1px solid #eee; border-radius:8px; overflow:hidden; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; text-align:left; }
+    th { background:#fafafa; font-weight:600; }
+    tr:last-child td { border-bottom: 0; }
+    .section-title { margin: 24px 0 12px; }
+  </style>
+  <script>
+    function logout(){
+      try {
+        sessionStorage.removeItem('username');
+        sessionStorage.removeItem('password');
+      } catch(_) {}
+      window.location = '/login?logout=1';
     }
-    // Redirect to login with a flag so it can show a message if supported
-    window.location = "/login?logout=1";
-  }
-
-    var connectedAs = document.getElementById("connected_as");
-    var username = sessionStorage.getItem("username");
-    if (username == null){
-    // Not logged in, go to login
-    window.location = "/login";
+    async function ensureAuthAndSetupNav(){
+      const u = sessionStorage.getItem('username');
+      const p = sessionStorage.getItem('password');
+      if (!u || !p) { window.location = '/login'; return; }
+      document.getElementById('connected_as').textContent = 'Connected as: ' + u + '.';
+      try {
+        const r = await fetch('/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:u,password:p}) });
+        const data = await r.json();
+        if (!data.ok) { window.location = '/login'; return; }
+        if (data.isAdmin) {
+          const adminLink = document.getElementById('admin-link');
+          if (adminLink) adminLink.style.display = 'inline-block';
+        }
+      } catch {
+        // If the check fails, we silently keep user on page; actions will fail gracefully
+      }
     }
-    connectedAs.innerHTML = "Connected as: " + username + ".";
+    document.addEventListener('DOMContentLoaded', ensureAuthAndSetupNav);
+  </script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">🍕 Pizza Shop</div>
+      <nav class="nav">
+        <a href="/home">Home</a>
+        <a href="/account">Account</a>
+        <a id="admin-link" href="/admin">Admin Panel</a>
+        <button class="btn" onclick="logout()">Log out</button>
+      </nav>
+    </header>
+    <main class="container">
+      <h1>Welcome!</h1>
+      <p id="connected_as">Connected as: ?</p>
+      <div class="hero">
+        <img src="https://opengameart.org/sites/default/files/Capture_10.png" alt="pizza" />
+        <div>
+          <p>We make our pizza with only the best ingredients.</p>
+        </div>
+      </div>
 
-</script>
+      <h2 class="section-title">Our menu</h2>
+      <table>
+        <tr>
+          <th>Pizza</th>
+          <th>Price</th>
+          <th>Diet info</th>
+        </tr>
+        <tr>
+          <td>Margherita</td>
+          <td>$7</td>
+          <td>Vegetarian</td>
+        </tr>
+        <tr>
+          <td>Hawaii</td>
+          <td>$8</td>
+          <td>Vegetarian</td>
+        </tr>
+        <tr>
+          <td>Diavola</td>
+          <td>$10</td>
+          <td>Omnivore</td>
+        </tr>
+        <tr>
+          <td>Quattro Stagioni</td>
+          <td>$10</td>
+          <td>Vegetarian</td>
+        </tr>
+        <tr>
+          <td>Marinara</td>
+          <td>$6</td>
+          <td>Vegan</td>
+        </tr>
+      </table>
+    </main>
+  </body>
+</html>
