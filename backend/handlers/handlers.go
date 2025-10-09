@@ -40,15 +40,6 @@ func LoginGetHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, string(html_string))
 }
 
-func AdminLoginHandler(w http.ResponseWriter, r *http.Request) {
-	html_string, err := os.ReadFile("frontend/admin_login.html")
-	if err != nil {
-		fmt.Println("admin page read error:", err)
-		http.Error(w, "Admin page not found", http.StatusInternalServerError)
-		return
-	}
-	fmt.Fprintln(w, string(html_string))
-}
 
 // Admin UI page (basic panel)
 func AdminHandler(w http.ResponseWriter, r *http.Request) {
