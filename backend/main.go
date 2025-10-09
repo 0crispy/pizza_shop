@@ -16,7 +16,6 @@ func main() {
 	http.HandleFunc("/", handlers.IndexHandler)
 	http.HandleFunc("/login", handlers.LoginHandler)
 	http.HandleFunc("/register", handlers.RegisterHandler)
-	http.HandleFunc("/admin-login", handlers.AdminLoginHandler)
 	http.HandleFunc("/pizza", handlers.PizzaHandler)
 	http.HandleFunc("/home", handlers.HomeHandler)
 	http.HandleFunc("/menu", handlers.MenuHandler)
