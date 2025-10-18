@@ -100,6 +100,57 @@
       }
     }
 
+    async function checkout() {
+      const cart = JSON.parse(localStorage.getItem('pizzaCart') || '[]');
+      
+      if (cart.length === 0) {
+        alert('Your cart is empty!');
+        return;
+      }
+      
+      const deliveryAddress = document.getElementById('delivery-address').value.trim();
+      const postalCode = document.getElementById('postal-code').value.trim();
+      
+      if (!deliveryAddress || !postalCode) {
+        alert('Please enter delivery address and postal code');
+        return;
+      }
+      
+      const username = sessionStorage.getItem('username');
+      const password = sessionStorage.getItem('password');
+      
+      const cartItems = cart.map(item => ({
+        id: item.id,
+        quantity: item.quantity
+      }));
+      
+      try {
+        const response = await fetch('/order/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: username,
+            password: password,
+            delivery_address: deliveryAddress,
+            postal_code: postalCode,
+            cart_items: cartItems
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+          localStorage.removeItem('pizzaCart');
+          alert('Order placed successfully! Order ID: ' + data.order_id);
+          window.location = '/home';
+        } else {
+          alert('Error: ' + (data.error || 'Failed to place order'));
+        }
+      } catch (err) {
+        alert('Error placing order: ' + err.message);
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       ensureAuthAndSetupNav();
       loadCart();
@@ -132,6 +183,19 @@
       </tbody>
     </table>
     <h3>Total: <span id="total">$0.00</span></h3>
+    
+    <div id="checkout-section">
+      <h2>Delivery Information</h2>
+      <div>
+        <label for="delivery-address">Delivery Address:</label><br>
+        <input type="text" id="delivery-address" placeholder="123 Main St" required style="width: 300px; padding: 5px; margin: 5px 0;">
+      </div>
+      <div>
+        <label for="postal-code">Postal Code:</label><br>
+        <input type="text" id="postal-code" placeholder="12345" required style="width: 150px; padding: 5px; margin: 5px 0;">
+      </div>
+      <button onclick="checkout()" style="margin-top: 15px; padding: 10px 20px; font-size: 16px;">Proceed to Checkout</button>
+    </div>
   </main>
 </body>
 </html>

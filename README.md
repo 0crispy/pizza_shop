@@ -35,8 +35,8 @@ go build backend/main.go
     - [x] Cart HTML
     - [x] Functionality to add pizza to cart
 - [ ] Ordering
-    - [ ] Order CRUD
-    - [ ] Ability to confirm order
+    - [x] Order CRUD
+    - [x] Ability to confirm order
     - [ ] Order confirmation screen
     - [ ] Transactions, rollback
 - [ ] Delivery person
