@@ -20,6 +20,7 @@ func Init() {
 
 	user := os.Getenv("DB_USER")
 	pass := os.Getenv("DB_PASS")
+	fmt.Println(pass)
 	PASSWORD_HASH_PEPPER = []byte(os.Getenv("DB_PEPPER"))
 
 	dsn := fmt.Sprintf("%s:%s@tcp(127.0.0.1:3306)/pizza_shop", user, pass)
