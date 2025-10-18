@@ -153,6 +153,15 @@ func TryAddCustomer(customer Customer) (bool, string) {
 	return true, ""
 }
 
+func GetUserIDFromUsername(username string) (int, error) {
+	var userID int
+	err := DATABASE.QueryRow("SELECT id FROM user WHERE username = ?", username).Scan(&userID)
+	if err != nil {
+		return 0, err
+	}
+	return userID, nil
+}
+
 func TryLogin(username string, password string) (bool, string) {
 	if len(username) == 0 {
 		return false, "Username cannot be empty!"
