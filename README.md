@@ -64,4 +64,4 @@ go build backend/main.go
 
 ## Optional TODO
 - [ ] Add a delete account button
-- [ ] Add updating account details
+- [x] Add updating account details
