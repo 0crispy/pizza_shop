@@ -29,6 +29,9 @@ func main() {
 	http.HandleFunc("/admin/pizza/create", handlers.AdminCreatePizzaHandler)
 	http.HandleFunc("/admin/pizza/list", handlers.AdminListPizzasHandler)
 	http.HandleFunc("/admin/pizza/delete", handlers.AdminDeletePizzaHandler)
+	http.HandleFunc("/cart", func(w http.ResponseWriter, r *http.Request) {
+    http.ServeFile(w, r, "frontend/cart.html")
+    })
 
 	fmt.Printf("Server running on http://localhost:%s\n", PORT)
 	http.ListenAndServe(fmt.Sprintf(":%s", PORT), nil)

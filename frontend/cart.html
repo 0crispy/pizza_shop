@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shopping Cart - Pizza Shop</title>
+  <script>
+    function logout(){
+      try {
+        sessionStorage.removeItem('username');
+        sessionStorage.removeItem('password');
+      } catch(_) {}
+      window.location = '/login?logout=1';
+    }
+
+    async function ensureAuthAndSetupNav(){
+      const u = sessionStorage.getItem('username');
+      const p = sessionStorage.getItem('password');
+      if (!u || !p) { window.location = '/login'; return; }
+      document.getElementById('connected_as').textContent = 'Connected as: ' + u + '.';
+      try {
+        const r = await fetch('/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:u,password:p}) });
+        const data = await r.json();
+        if (!data.ok) { window.location = '/login'; return; }
+        if (data.isAdmin) {
+          const adminLink = document.getElementById('admin-link');
+          if (adminLink) adminLink.style.display = 'inline-block';
+        }
+      } catch {
+        // If the check fails, we silently keep user on page
+      }
+      updateCartCount();
+    }
+
+    function loadCart() {
+      const cart = JSON.parse(localStorage.getItem('pizzaCart') || '[]');
+      const tbody = document.querySelector('#cart-table tbody');
+      tbody.innerHTML = '';
+      
+      if (cart.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5">Your cart is empty</td></tr>';
+        document.getElementById('total').textContent = '$0.00';
+        return;
+      }
+      
+      let total = 0;
+      cart.forEach(item => {
+        const itemTotal = item.price * item.quantity;
+        total += itemTotal;
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${item.name}</td>
+          <td>$${item.price.toFixed(2)}</td>
+          <td>
+            <button onclick="updateQuantity(${item.id}, ${item.quantity - 1})">-</button>
+            ${item.quantity}
+            <button onclick="updateQuantity(${item.id}, ${item.quantity + 1})">+</button>
+          </td>
+          <td>$${itemTotal.toFixed(2)}</td>
+          <td><button onclick="removeFromCart(${item.id})">Remove</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+      
+      document.getElementById('total').textContent = '$' + total.toFixed(2);
+    }
+
+    function updateQuantity(id, newQuantity) {
+      let cart = JSON.parse(localStorage.getItem('pizzaCart') || '[]');
+      
+      if (newQuantity <= 0) {
+        removeFromCart(id);
+        return;
+      }
+      
+      const item = cart.find(item => item.id === id);
+      if (item) {
+        item.quantity = newQuantity;
+        localStorage.setItem('pizzaCart', JSON.stringify(cart));
+        loadCart();
+        updateCartCount();
+      }
+    }
+
+    function removeFromCart(id) {
+      let cart = JSON.parse(localStorage.getItem('pizzaCart') || '[]');
+      cart = cart.filter(item => item.id !== id);
+      localStorage.setItem('pizzaCart', JSON.stringify(cart));
+      loadCart();
+      updateCartCount();
+    }
+
+    function updateCartCount() {
+      const cart = JSON.parse(localStorage.getItem('pizzaCart') || '[]');
+      const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+      const cartLink = document.getElementById('cart-link');
+      if (cartLink) {
+        cartLink.textContent = 'Cart (' + count + ')';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      ensureAuthAndSetupNav();
+      loadCart();
+    });
+  </script>
+</head>
+<body>
+  <nav>
+    <a href="/home">Home</a>
+    <a href="/account">Account</a>
+    <a id="admin-link" href="/admin" style="display:none;">Admin</a>
+    <a id="cart-link" href="/cart">Cart (0)</a>
+    <a href="#" onclick="logout(); return false;">Logout</a>
+  </nav>
+  <main class="container">
+    <h1>Shopping Cart</h1>
+    <p id="connected_as">Connected as: ?</p>
+    
+    <table id="cart-table">
+      <thead>
+        <tr>
+          <th>Pizza</th>
+          <th>Price</th>
+          <th>Quantity</th>
+          <th>Total</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+      </tbody>
+    </table>
+    <h3>Total: <span id="total">$0.00</span></h3>
+  </main>
+</body>
+</html>
