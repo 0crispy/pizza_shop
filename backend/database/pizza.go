@@ -137,6 +137,45 @@ func GetAllPizzas() ([]Pizza, error) {
 	return pizzas, nil
 }
 
+func GetPizzaByID(pizzaID int) (*Pizza, error) {
+	var pizza Pizza
+	err := DATABASE.QueryRow("SELECT id, name FROM pizza WHERE id = ?", pizzaID).Scan(&pizza.ID, &pizza.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	ingrRows, err := DATABASE.Query(`
+		SELECT i.id, i.name, i.cost, i.has_meat, i.has_animal_products
+		FROM ingredient i
+		JOIN pizza_ingredient pi ON pi.ingredient_id = i.id
+		WHERE pi.pizza_id = ?`, pizza.ID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer ingrRows.Close()
+
+	var ingredients []IngredientWithID
+	for ingrRows.Next() {
+		var ingr IngredientWithID
+		var costStr string
+		err := ingrRows.Scan(&ingr.ID, &ingr.Ingr.Name, &costStr, &ingr.Ingr.HasMeat, &ingr.Ingr.HasAnimalProducts)
+		if err != nil {
+			return nil, err
+		}
+
+		ingr.Ingr.Cost, err = decimal.NewFromString(costStr)
+		if err != nil {
+			return nil, err
+		}
+
+		ingredients = append(ingredients, ingr)
+	}
+
+	pizza.Ingredients = ingredients
+	return &pizza, nil
+}
+
 // DeletePizza removes a pizza and its ingredient relations in a transaction.
 func DeletePizza(pizzaID int) error {
 	tx, err := DATABASE.Begin()
