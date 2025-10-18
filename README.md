@@ -14,9 +14,8 @@ Run the shit:
 
 ```
 go build backend/main.go 
-go run ./main
+./main
 ```
-
 
 ## TODO:
 
