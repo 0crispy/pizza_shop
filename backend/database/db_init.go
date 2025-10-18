@@ -180,6 +180,36 @@ func InitDatabaseIfEmpty() {
 			pizza_counter TINYINT NOT NULL DEFAULT 0,
 			FOREIGN KEY (user_id) REFERENCES user(id)
 		)`,
+		`CREATE TABLE IF NOT EXISTS ` + "`order`" + ` (
+			id BIGINT AUTO_INCREMENT PRIMARY KEY,
+			customer_id BIGINT NOT NULL,
+			timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			status VARCHAR(50) NOT NULL,
+			postal_code VARCHAR(10) NOT NULL,
+			delivery_address VARCHAR(256) NOT NULL,
+			FOREIGN KEY (customer_id) REFERENCES customer(id)
+		)`,
+		`CREATE TABLE IF NOT EXISTS order_pizza (
+			id BIGINT AUTO_INCREMENT PRIMARY KEY,
+			order_id BIGINT NOT NULL,
+			pizza_id INT NOT NULL,
+			quantity INT NOT NULL,
+			FOREIGN KEY (order_id) REFERENCES ` + "`order`" + `(id) ON DELETE CASCADE,
+			FOREIGN KEY (pizza_id) REFERENCES pizza(id)
+		)`,
+		`CREATE TABLE IF NOT EXISTS extra_item (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			name VARCHAR(255) NOT NULL,
+			price DECIMAL(10, 2) NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS order_extra_item (
+			id BIGINT AUTO_INCREMENT PRIMARY KEY,
+			order_id BIGINT NOT NULL,
+			extra_item_id INT NOT NULL,
+			quantity INT NOT NULL,
+			FOREIGN KEY (order_id) REFERENCES ` + "`order`" + `(id) ON DELETE CASCADE,
+			FOREIGN KEY (extra_item_id) REFERENCES extra_item(id)
+		)`,
 		`SET FOREIGN_KEY_CHECKS = 1;`,
 	}
 	for _, q := range queries {

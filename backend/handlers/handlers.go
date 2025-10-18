@@ -491,6 +491,16 @@ func CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	customerID, err := database.GetCustomerIDFromUserID(userID)
+	if err != nil {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Customer not found"})
+		return
+	}
+
 	if len(req.CartItems) == 0 {
 		type Msg struct {
 			Ok    bool   `json:"ok"`
@@ -500,7 +510,7 @@ func CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orderID, err := database.CreateOrder(userID, req.DeliveryAddress, req.PostalCode)
+	orderID, err := database.CreateOrder(customerID, req.DeliveryAddress, req.PostalCode)
 	if err != nil {
 		type Msg struct {
 			Ok    bool   `json:"ok"`
