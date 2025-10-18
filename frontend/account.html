@@ -34,12 +34,17 @@
                             document.getElementById('username').value = c.username || '';
                             document.getElementById('name').value = c.name || '';
                             document.getElementById('gender').value = c.gender || '';
-                            if (!c.noBirthDate && c.birthDate) { document.getElementById('birth_date').value = c.birthDate; }
+                            if (c.birthDate) { 
+                                document.getElementById('birth_date').value = c.birthDate.split('T')[0];
+                            }
                             document.getElementById('address').value = c.address || '';
                             document.getElementById('postcode').value = c.postcode || '';
                         } else {
                             document.getElementById('error').innerText = 'Could not load account details.';
                         }
+                    })
+                    .catch(err => {
+                        document.getElementById('error').innerText = 'Network error';
                     });
                 }
             })
@@ -48,17 +53,15 @@
     </script>
 </head>
 <body>
-    <header class="topbar">
-        <div class="brand">🍕 Pizza Shop</div>
-        <nav class="nav">
-            <a href="/home">Home</a>
-            <a href="/account">Account</a>
-            <a id="admin-link" href="/admin">Admin Panel</a>
-            <button class="btn" onclick="logout()">Log out</button>
-        </nav>
-    </header>
+    <nav>
+        <a href="/home">Home</a>
+        <a href="/account">Account</a>
+        <a id="admin-link" href="/admin" style="display:none;">Admin Panel</a>
+        <a href="/cart">Cart</a>
+        <a href="#" onclick="logout(); return false;">Log out</a>
+    </nav>
 
-    <main class="container">
+    <main>
         <h1>Your account</h1>
         <!-- Admin view: only username and password -->
         <div id="admin-section" style="display:none;">
@@ -81,16 +84,16 @@
             <input type="text" id="gender" disabled /><br />
 
             <label for="birth_date">Birth date:</label><br />
-            <input type="date" id="birth_date" disabled /><br />
+            <input type="text" id="birth_date" disabled /><br />
 
             <label for="address">Address:</label><br />
-            <input type="text" id="address" disabled style="width:300px" /><br />
+            <input type="text" id="address" disabled /><br />
 
             <label for="postcode">Postal code:</label><br />
             <input type="text" id="postcode" disabled /><br />
         </div>
 
-        <p id="error" style="color:rgb(255, 75, 75)"></p>
+        <p id="error"></p>
     </main>
 </body>
 </html>
