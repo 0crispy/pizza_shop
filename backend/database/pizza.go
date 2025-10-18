@@ -14,6 +14,15 @@ type Pizza struct {
 	Ingredients []IngredientWithID
 }
 
+type PizzaWithPrice struct {
+	ID           int                `json:"id"`
+	Name         string             `json:"name"`
+	Ingredients  []IngredientWithID `json:"ingredients"`
+	Price        float64            `json:"price"`
+	IsVegan      bool               `json:"is_vegan"`
+	IsVegetarian bool               `json:"is_vegetarian"`
+}
+
 func (p Pizza) String() string {
 	var ingredientNames []string
 	for _, ingr := range p.Ingredients {
@@ -222,4 +231,32 @@ func getPizzaFinalCost(ingredientsCost decimal.Decimal) decimal.Decimal {
 	// Add 9% VAT (stupid)
 	totalCost = totalCost.Mul(decimal.NewFromFloat(1.09))
 	return totalCost
+}
+
+func GetAllPizzasWithPrice() ([]PizzaWithPrice, error) {
+	pizzas, err := GetAllPizzas()
+	if err != nil {
+		return nil, err
+	}
+
+	pizzasWithPrice := make([]PizzaWithPrice, len(pizzas))
+	for i, pizza := range pizzas {
+		info, err := GetPizzaInformation(pizza.Name)
+		if err != nil {
+			return nil, err
+		}
+
+		priceFloat, _ := info.Cost.Float64()
+
+		pizzasWithPrice[i] = PizzaWithPrice{
+			ID:           pizza.ID,
+			Name:         pizza.Name,
+			Ingredients:  pizza.Ingredients,
+			Price:        priceFloat,
+			IsVegan:      info.IsVegan,
+			IsVegetarian: info.IsVegetarian,
+		}
+	}
+
+	return pizzasWithPrice, nil
 }

@@ -415,7 +415,7 @@ func AdminListPizzasHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	pizzas, err := database.GetAllPizzas()
+	pizzas, err := database.GetAllPizzasWithPrice()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

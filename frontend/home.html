@@ -50,34 +50,7 @@
       }
     }
 
-    function calculatePizzaDetails(pizza) {
-      let totalPrice = 0;
-      let hasMeat = false;
-      let hasAnimalProducts = false;
-      
-      if (pizza.Ingredients) {
-        pizza.Ingredients.forEach(ingredient => {
-          const cost = parseFloat(ingredient.Ingr.Cost);
-          totalPrice += cost;
-          
-          if (ingredient.Ingr.HasMeat) {
-            hasMeat = true;
-          }
-          if (ingredient.Ingr.HasAnimalProducts) {
-            hasAnimalProducts = true;
-          }
-        });
-      }
-      
-      const isVegan = !hasMeat && !hasAnimalProducts;
-      const isVegetarian = !hasMeat && hasAnimalProducts;
-      
-      return {
-        price: totalPrice,
-        isVegan: isVegan,
-        isVegetarian: isVegetarian
-      };
-    }
+
 
     function displayPizzas(pizzas) {
       const tbody = document.querySelector('#menu-table tbody');
@@ -89,12 +62,10 @@
       }
       
       pizzas.forEach(pizza => {
-        const details = calculatePizzaDetails(pizza);
-        
         const dietInfo = [];
-        if (details.isVegan) {
+        if (pizza.is_vegan) {
           dietInfo.push('Vegan');
-        } else if (details.isVegetarian) {
+        } else if (pizza.is_vegetarian) {
           dietInfo.push('Vegetarian');
         } else {
           dietInfo.push('Omnivore');
@@ -102,15 +73,15 @@
         
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${pizza.Name}</td>
-          <td>$${details.price.toFixed(2)}</td>
+          <td>${pizza.name}</td>
+          <td>$${pizza.price.toFixed(2)}</td>
           <td>${dietInfo.join(', ')}</td>
           <td><button class="add-to-cart-btn">Add to Cart</button></td>
         `;
         
         const button = tr.querySelector('.add-to-cart-btn');
         button.addEventListener('click', function() {
-          addToCart(pizza.ID, pizza.Name, details.price);
+          addToCart(pizza.id, pizza.name, pizza.price);
         });
         
         tbody.appendChild(tr);
