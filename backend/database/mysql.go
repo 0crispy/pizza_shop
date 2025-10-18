@@ -41,8 +41,6 @@ func Init() {
 	reset := strings.EqualFold(os.Getenv("DB_RESET"), "true") || os.Getenv("DB_RESET") == "1"
 	if reset {
 		InitDatabaseDev()
-	} else {
-		InitDatabaseIfEmpty()
 	}
 }
 
