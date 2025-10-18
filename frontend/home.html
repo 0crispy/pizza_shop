@@ -12,6 +12,31 @@
       } catch(_) {}
       window.location = '/login?logout=1';
     }
+
+    function addToCart(id, name, price) {
+      let cart = JSON.parse(localStorage.getItem('pizzaCart') || '[]');
+      
+      const existingItem = cart.find(item => item.id === id);
+      if (existingItem) {
+        existingItem.quantity += 1;
+      } else {
+        cart.push({ id, name, price, quantity: 1 });
+      }
+      
+      localStorage.setItem('pizzaCart', JSON.stringify(cart));
+      updateCartCount();
+      alert(name + ' added to cart!');
+    }
+
+    function updateCartCount() {
+      const cart = JSON.parse(localStorage.getItem('pizzaCart') || '[]');
+      const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+      const cartLink = document.getElementById('cart-link');
+      if (cartLink) {
+        cartLink.textContent = 'Cart (' + count + ')';
+      }
+    }
+
     async function ensureAuthAndSetupNav(){
       const u = sessionStorage.getItem('username');
       const p = sessionStorage.getItem('password');
@@ -28,11 +53,19 @@
       } catch {
         // If the check fails, we silently keep user on page; actions will fail gracefully
       }
+      updateCartCount();
     }
     document.addEventListener('DOMContentLoaded', ensureAuthAndSetupNav);
   </script>
   </head>
   <body>
+    <nav>
+      <a href="/home">Home</a>
+      <a href="/account">Account</a>
+      <a id="admin-link" href="/admin" style="display:none;">Admin</a>
+      <a id="cart-link" href="/cart">Cart (0)</a>
+      <a href="#" onclick="logout(); return false;">Logout</a>
+    </nav>
     <main class="container">
       <h1>Welcome!</h1>
       <p id="connected_as">Connected as: ?</p>
@@ -47,31 +80,37 @@
           <th>Pizza</th>
           <th>Price</th>
           <th>Diet info</th>
+          <th>Action</th>
         </tr>
         <tr>
           <td>Margherita</td>
           <td>$7</td>
           <td>Vegetarian</td>
+          <td><button onclick="addToCart(1, 'Margherita', 7)">Add to Cart</button></td>
         </tr>
         <tr>
           <td>Hawaii</td>
           <td>$8</td>
           <td>Vegetarian</td>
+          <td><button onclick="addToCart(2, 'Hawaii', 8)">Add to Cart</button></td>
         </tr>
         <tr>
           <td>Diavola</td>
           <td>$10</td>
           <td>Omnivore</td>
+          <td><button onclick="addToCart(3, 'Diavola', 10)">Add to Cart</button></td>
         </tr>
         <tr>
           <td>Quattro Stagioni</td>
           <td>$10</td>
           <td>Vegetarian</td>
+          <td><button onclick="addToCart(4, 'Quattro Stagioni', 10)">Add to Cart</button></td>
         </tr>
         <tr>
           <td>Marinara</td>
           <td>$6</td>
           <td>Vegan</td>
+          <td><button onclick="addToCart(5, 'Marinara', 6)">Add to Cart</button></td>
         </tr>
       </table>
     </main>
