@@ -34,21 +34,21 @@ go build backend/main.go
 - [x] Shopping cart
     - [x] Cart HTML
     - [x] Functionality to add pizza to cart
-- [ ] Ordering
+- [ ] Ordering <-A
     - [x] Order CRUD
     - [x] Ability to confirm order
     - [ ] Order confirmation screen
     - [ ] Transactions, rollback
-- [ ] Delivery person
-    - [ ] Delivery person CRUD
-    - [ ] Delivery person login
+- [x] Delivery person <-K
+    - [x] Delivery person CRUD
+    - [x] Delivery person login
     - [ ] Delivery person view assigned order
     - [ ] Delivery person mark order as delivered/failed/etc
-- [ ] Desserts & drinks
+- [ ] Desserts & drinks <-A
     - [ ] Extra item CRUD
     - [ ] Add to menu
     - [ ] Ordering desserts and drinks
-- [ ] Discount codes
+- [ ] Discount codes <-K
     - [ ] Discount code CRUD
     - [ ] Admin create discount codes
     - [ ] Birthday discount code

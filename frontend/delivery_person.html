@@ -1,0 +1,17 @@
+<h1>Delivery person panel</h1>
+<p id="connected_as"></p>
+
+<h2>Choose a delivery:</h2>
+
+Here are listed all of the deliveries.
+
+<h2>Here are your deliveries:</h2>
+
+Here are listed all of your deliveries, both 
+pending and completed.
+
+
+<script>
+    const u = sessionStorage.getItem('username');
+    document.getElementById('connected_as').textContent = 'Connected as: ' + u + '.';
+</script>

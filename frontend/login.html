@@ -80,10 +80,13 @@
                 if (data.ok){
                     sessionStorage.setItem("username", usernameInput.value);
                     sessionStorage.setItem("password", passwordInput.value);
-                    if (data.isAdmin){
-                        // Autodetect admin and send to admin panel
+                    if (data.role == "ADMIN"){
                         window.location = "/admin";
-                    } else {
+                    } 
+                    else if (data.role == "DELIVERY"){
+                        window.location = "/delivery_person";
+                    }
+                    else if (data.role == "CUSTOMER"){
                         window.location = "/home";
                     }
                 }

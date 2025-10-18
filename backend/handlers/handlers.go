@@ -56,21 +56,21 @@ func LoginPostHandler(w http.ResponseWriter, r *http.Request) {
 	msg := ""
 	if err != nil {
 		msg = err.Error()
+		success = false
 	}
 
-	isAdmin := false
-	if success {
-		if role, rerr := database.GetUserRole(username); rerr == nil && role == database.AdminRole.String() {
-			isAdmin = true
-		}
+	role,err := database.GetUserRole(username)
+	if err != nil{
+		msg = err.Error()
+		success = false
 	}
 
 	type Msg struct {
-		Ok      bool   `json:"ok"`
-		Msg     string `json:"msg"`
-		IsAdmin bool   `json:"isAdmin"`
+		Ok   bool   `json:"ok"`
+		Msg  string `json:"msg"`
+		Role string `json:"role"`
 	}
-	sendMsg := Msg{success, msg, isAdmin}
+	sendMsg := Msg{success, msg, role}
 	jsonMsg, err := json.Marshal(sendMsg)
 	if err != nil {
 		panic(err)
@@ -657,4 +657,12 @@ func GetOrderDetailsHandler(w http.ResponseWriter, r *http.Request) {
 		Order *database.OrderDetails `json:"order"`
 	}
 	json.NewEncoder(w).Encode(Msg{Ok: true, Order: details})
+}
+
+func DeliveryPerson(w http.ResponseWriter, r *http.Request) {
+	html_string, err := os.ReadFile("frontend/delivery_person.html")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Fprintln(w, string(html_string))
 }

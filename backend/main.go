@@ -30,12 +30,14 @@ func main() {
 	http.HandleFunc("/admin/pizza/list", handlers.AdminListPizzasHandler)
 	http.HandleFunc("/admin/pizza/delete", handlers.AdminDeletePizzaHandler)
 	http.HandleFunc("/cart", func(w http.ResponseWriter, r *http.Request) {
-    http.ServeFile(w, r, "frontend/cart.html")
-    })
+		http.ServeFile(w, r, "frontend/cart.html")
+	})
 
 	http.HandleFunc("/order/create", handlers.CreateOrderHandler)
 	http.HandleFunc("/order/list", handlers.GetOrdersHandler)
 	http.HandleFunc("/order/details", handlers.GetOrderDetailsHandler)
+
+	http.HandleFunc("/delivery_person", handlers.DeliveryPerson)
 
 	fmt.Printf("Server running on http://localhost:%s\n", PORT)
 	http.ListenAndServe(fmt.Sprintf(":%s", PORT), nil)
