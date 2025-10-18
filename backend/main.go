@@ -33,6 +33,10 @@ func main() {
     http.ServeFile(w, r, "frontend/cart.html")
     })
 
+	http.HandleFunc("/order/create", handlers.CreateOrderHandler)
+	http.HandleFunc("/order/list", handlers.GetOrdersHandler)
+	http.HandleFunc("/order/details", handlers.GetOrderDetailsHandler)
+
 	fmt.Printf("Server running on http://localhost:%s\n", PORT)
 	http.ListenAndServe(fmt.Sprintf(":%s", PORT), nil)
 }

@@ -446,3 +446,205 @@ func AdminDeletePizzaHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// POST /order/create
+// Create a new order from cart items
+func CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Username        string `json:"username"`
+		Password        string `json:"password"`
+		DeliveryAddress string `json:"delivery_address"`
+		PostalCode      string `json:"postal_code"`
+		CartItems       []struct {
+			ID       int `json:"id"`
+			Quantity int `json:"quantity"`
+		} `json:"cart_items"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	success, _ := database.TryLogin(req.Username, req.Password)
+	if !success {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Invalid credentials"})
+		return
+	}
+
+	userID, err := database.GetUserIDFromUsername(req.Username)
+	if err != nil {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "User not found"})
+		return
+	}
+
+	if len(req.CartItems) == 0 {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Cart is empty"})
+		return
+	}
+
+	orderID, err := database.CreateOrder(userID, req.DeliveryAddress, req.PostalCode)
+	if err != nil {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Failed to create order"})
+		return
+	}
+
+	for _, item := range req.CartItems {
+		err := database.AddPizzaToOrder(orderID, item.ID, item.Quantity)
+		if err != nil {
+			type Msg struct {
+				Ok    bool   `json:"ok"`
+				Error string `json:"error"`
+			}
+			json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Failed to add items to order"})
+			return
+		}
+	}
+
+	type Msg struct {
+		Ok      bool `json:"ok"`
+		OrderID int  `json:"order_id"`
+	}
+	json.NewEncoder(w).Encode(Msg{Ok: true, OrderID: orderID})
+}
+
+// POST /order/list
+// Get all orders for the auth customer
+func GetOrdersHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	success, _ := database.TryLogin(req.Username, req.Password)
+	if !success {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Invalid credentials"})
+		return
+	}
+
+	userID, err := database.GetUserIDFromUsername(req.Username)
+	if err != nil {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "User not found"})
+		return
+	}
+
+	orders, err := database.GetOrdersByCustomer(userID)
+	if err != nil {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Failed to get orders"})
+		return
+	}
+
+	type Msg struct {
+		Ok     bool             `json:"ok"`
+		Orders []database.Order `json:"orders"`
+	}
+	json.NewEncoder(w).Encode(Msg{Ok: true, Orders: orders})
+}
+
+// POST /order/details
+// Get detailed information for a specific order
+func GetOrderDetailsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+		OrderID  int    `json:"order_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	success, _ := database.TryLogin(req.Username, req.Password)
+	if !success {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Invalid credentials"})
+		return
+	}
+
+	userID, err := database.GetUserIDFromUsername(req.Username)
+	if err != nil {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "User not found"})
+		return
+	}
+
+	details, err := database.GetOrderDetails(req.OrderID)
+	if err != nil {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Failed to get order details"})
+		return
+	}
+
+	if details.Order.CustomerID != userID {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Unauthorized"})
+		return
+	}
+
+	type Msg struct {
+		Ok    bool                   `json:"ok"`
+		Order *database.OrderDetails `json:"order"`
+	}
+	json.NewEncoder(w).Encode(Msg{Ok: true, Order: details})
+}
