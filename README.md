@@ -31,9 +31,9 @@ go build backend/main.go
     - [x] Display menu on client
     - [x] Display vegan/vegetarian
     - [x] Calculate price
-- [ ] Shopping cart
-    - [ ] Cart HTML
-    - [ ] Functionality to add pizza to cart
+- [x] Shopping cart
+    - [x] Cart HTML
+    - [x] Functionality to add pizza to cart
 - [ ] Ordering
     - [ ] Order CRUD
     - [ ] Ability to confirm order
