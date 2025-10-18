@@ -285,10 +285,18 @@ func GetCustomerDetails(username string, password string) (Customer, error) {
 
 	if rows.Next() {
 		var customer Customer
-		err := rows.Scan(&customer.Name, &customer.Gender, &customer.BirthDate, &customer.Address, &customer.PostCode)
+		var birthDate sql.NullString
+		err := rows.Scan(&customer.Name, &customer.Gender, &birthDate, &customer.Address, &customer.PostCode)
 		if err != nil {
-			return Customer{}, nil
+			return Customer{}, err
 		}
+
+		if birthDate.Valid {
+			customer.BirthDate = birthDate.String
+		} else {
+			customer.BirthDate = ""
+		}
+
 		customer.Username = username
 		customer.Password = password
 		return customer, nil
