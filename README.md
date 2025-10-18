@@ -6,28 +6,16 @@ To run this thing first create a `.env` file:
 DB_USER=root
 DB_PASS=mypassword
 DB_PEPPER=some_random_string
-# Optional: set to 1/true to wipe and reseed dev DB once on startup
-# Leave unset (recommended) so data persists across restarts
+# set this to true to reset the database each time when starting server
 # DB_RESET=1
 ```
 
-Run the backend from the repo root:
+Run the shit:
 
 ```
-go run ./backend
+go build backend/main.go 
+go run ./main
 ```
-
-Notes on database initialization:
-- By default, the server will only create tables if missing and seed data if empty.
-- Your changes (admin-created pizzas/ingredients, user registrations) will now persist across restarts.
-- If you need a clean slate for development, temporarily set `DB_RESET=1` when starting the server:
-
-```
-DB_RESET=1 go run ./backend
-```
-
-Then run normally again (without DB_RESET) so changes persist.
-
 
 
 ## TODO:

@@ -27,3 +27,4 @@ vendor/
 .env
 
 *.sql
+main
