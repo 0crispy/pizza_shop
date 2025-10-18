@@ -21,10 +21,10 @@ go build backend/main.go
 
 - [x] my sql setup
 - [x] Login/register
-- [ ] Accounts
+- [x] Accounts
     - [x] Add a view account button (go to /account)
     - [x] Add a log out button
-    - [ ] Admin login screen
+    - [x] Admin login screen
 - [x] Menu
     - [x] Menu HTML prototype
     - [x] Menu CRUD (pizza, ingredient, etc)
