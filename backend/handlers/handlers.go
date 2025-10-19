@@ -568,7 +568,17 @@ func GetOrdersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orders, err := database.GetOrdersByCustomer(userID)
+	customerID, err := database.GetCustomerIDFromUserID(userID)
+	if err != nil {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Customer not found"})
+		return
+	}
+
+	orders, err := database.GetOrdersByCustomer(customerID)
 	if err != nil {
 		type Msg struct {
 			Ok    bool   `json:"ok"`
