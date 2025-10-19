@@ -5,58 +5,170 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Panel</title>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-    h2 { margin-top: 24px; }
-    input, button, select { margin: 4px 0; }
-    code { background: #f6f6f6; padding: 2px 4px; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; }
+    h2 { margin-top: 24px; color: #333; }
+    h3 { color: #333; }
+    label { color: #333; font-weight: 500; }
+    input, button, select { margin: 4px 0; padding: 8px; }
+    button { cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; }
+    button:hover { background-color: #0056b3; }
+    button.danger { background-color: #dc3545; }
+    button.danger:hover { background-color: #c82333; }
+    code { background: #f6f6f6; padding: 2px 4px; color: #333; }
+    
+    .tabs { display: flex; border-bottom: 2px solid #ddd; margin-bottom: 20px; }
+    .tab { padding: 10px 20px; cursor: pointer; border: none; background: none; font-size: 16px; color: #333; }
+    .tab.active { border-bottom: 3px solid #007bff; color: #007bff; font-weight: bold; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    tr:hover { background-color: #f5f5f5; }
+    
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+    .form-group input, .form-group select { width: 100%; max-width: 400px; }
+    
+    .status-badge { padding: 4px 8px; border-radius: 3px; font-size: 0.85em; }
+    .status-pending { background-color: #fff3cd; color: #856404; }
+    .status-preparing { background-color: #cce5ff; color: #004085; }
+    .status-delivering { background-color: #d1ecf1; color: #0c5460; }
+    .status-delivered { background-color: #d4edda; color: #155724; }
+    .status-cancelled { background-color: #f8d7da; color: #721c24; }
+    
+    .actions { display: flex; gap: 5px; }
   </style>
 </head>
 <body>
   <h1>Admin Panel</h1>
   <p><a href="/home">Home</a> | <a href="/login?logout=1">Log out</a></p>
 
-  <div>
-    <label>Admin username</label><br />
-    <input id="adm-user" type="text" /><br />
-    <label>Admin password</label><br />
-    <input id="adm-pass" type="password" /><br />
-    <small>These are sent only to the admin endpoints; use admin/admin in dev.</small>
+  <input id="adm-user" type="hidden" value="admin" />
+  <input id="adm-pass" type="hidden" value="admin" />
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('users')">Users</button>
+    <button class="tab" onclick="showTab('orders')">Orders</button>
+    <button class="tab" onclick="showTab('delivery')">Delivery Persons</button>
+    <button class="tab" onclick="showTab('pizzas')">Pizzas</button>
+    <button class="tab" onclick="showTab('ingredients')">Ingredients</button>
   </div>
 
-  <h2>Ingredients</h2>
-  <div>
-    <button onclick="listIngredients()">List ingredients</button>
-    <pre id="ingredients-list"></pre>
-  </div>
-  <div>
-    <h3>Create ingredient</h3>
-    <input id="ingr-name" placeholder="Name" />
-    <input id="ingr-cost" type="number" placeholder="Cost (cents)" />
-    <label><input id="ingr-meat" type="checkbox" /> Has meat</label>
-    <label><input id="ingr-animal" type="checkbox" /> Has animal products</label>
-    <button onclick="createIngredient()">Create</button>
-  </div>
-  <div>
-    <h3>Delete ingredient</h3>
-    <input id="ingr-del-id" type="number" placeholder="Ingredient ID" />
-    <button onclick="deleteIngredient()">Delete</button>
+  <!-- Users Tab -->
+  <div id="users-tab" class="tab-content active">
+    <h2>User Management</h2>
+    
+    <button onclick="loadUsers()">Refresh Users List</button>
+    <div id="users-list"></div>
+    
+    <h3>Create New Customer</h3>
+    <div class="form-group">
+      <label>Username:</label>
+      <input id="new-user-username" type="text" placeholder="Username" />
+    </div>
+    <div class="form-group">
+      <label>Password:</label>
+      <input id="new-user-password" type="password" placeholder="Password" />
+    </div>
+    <div class="form-group">
+      <label>Name:</label>
+      <input id="new-user-name" type="text" placeholder="Full Name" />
+    </div>
+    <div class="form-group">
+      <label>Gender:</label>
+      <input id="new-user-gender" type="text" placeholder="Gender" />
+    </div>
+    <div class="form-group">
+      <label>Birth Date:</label>
+      <input id="new-user-birthdate" type="date" />
+      <label><input id="new-user-no-birthdate" type="checkbox" /> No birth date</label>
+    </div>
+    <div class="form-group">
+      <label>Address:</label>
+      <input id="new-user-address" type="text" placeholder="Address" />
+    </div>
+    <div class="form-group">
+      <label>Postal Code:</label>
+      <input id="new-user-postal" type="text" placeholder="Postal Code" />
+    </div>
+    
+    <button onclick="createCustomer()">Create Customer</button>
   </div>
 
-  <h2>Pizzas</h2>
-  <div>
-    <button onclick="listPizzas()">List pizzas</button>
-    <pre id="pizzas-list"></pre>
+  <!-- Orders Tab -->
+  <div id="orders-tab" class="tab-content">
+    <h2>Order Management</h2>
+    
+    <button onclick="loadOrders()">Refresh Orders List</button>
+    <div id="orders-list"></div>
   </div>
-  <div>
-    <h3>Create pizza</h3>
-    <input id="pizza-name" placeholder="Pizza name" />
-    <input id="pizza-ingredients" placeholder='Ingredients (comma separated)' />
-    <button onclick="createPizza()">Create</button>
+
+  <!-- Delivery Persons Tab -->
+  <div id="delivery-tab" class="tab-content">
+    <h2>Delivery Person Management</h2>
+    
+    <button onclick="loadDeliveryPersons()">Refresh Delivery Persons List</button>
+    <div id="delivery-list"></div>
+    
+    <h3>Create Delivery Person</h3>
+    <div class="form-group">
+      <label>Username:</label>
+      <input id="new-delivery-username" type="text" placeholder="Username" />
+    </div>
+    <div class="form-group">
+      <label>Password:</label>
+      <input id="new-delivery-password" type="password" placeholder="Password" />
+    </div>
+    <div class="form-group">
+      <label>Name:</label>
+      <input id="new-delivery-name" type="text" placeholder="Full Name" />
+    </div>
+    
+    <button onclick="createDeliveryPerson()">Create Delivery Person</button>
   </div>
-  <div>
-    <h3>Delete pizza</h3>
-    <input id="pizza-del-id" type="number" placeholder="Pizza ID" />
-    <button onclick="deletePizza()">Delete</button>
+
+  <!-- Pizzas Tab -->
+  <div id="pizzas-tab" class="tab-content">
+    <h2>Pizzas</h2>
+    <div>
+      <button onclick="listPizzas()">List pizzas</button>
+      <pre id="pizzas-list"></pre>
+    </div>
+    <div>
+      <h3>Create pizza</h3>
+      <input id="pizza-name" placeholder="Pizza name" />
+      <input id="pizza-ingredients" placeholder='Ingredients (comma separated)' />
+      <button onclick="createPizza()">Create</button>
+    </div>
+    <div>
+      <h3>Delete pizza</h3>
+      <input id="pizza-del-id" type="number" placeholder="Pizza ID" />
+      <button onclick="deletePizza()">Delete</button>
+    </div>
+  </div>
+
+  <!-- Ingredients Tab -->
+  <div id="ingredients-tab" class="tab-content">
+    <h2>Ingredients</h2>
+    <div>
+      <button onclick="listIngredients()">List ingredients</button>
+      <pre id="ingredients-list"></pre>
+    </div>
+    <div>
+      <h3>Create ingredient</h3>
+      <input id="ingr-name" placeholder="Name" />
+      <input id="ingr-cost" type="number" placeholder="Cost (cents)" />
+      <label><input id="ingr-meat" type="checkbox" /> Has meat</label>
+      <label><input id="ingr-animal" type="checkbox" /> Has animal products</label>
+      <button onclick="createIngredient()">Create</button>
+    </div>
+    <div>
+      <h3>Delete ingredient</h3>
+      <input id="ingr-del-id" type="number" placeholder="Ingredient ID" />
+      <button onclick="deleteIngredient()">Delete</button>
+    </div>
   </div>
 
   <script>
@@ -66,11 +178,335 @@
         p: document.getElementById('adm-pass').value,
       };
     }
+
+    function showTab(tabName) {
+      // Hide all tabs
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      
+      // Show selected tab
+      document.getElementById(tabName + '-tab').classList.add('active');
+      event.target.classList.add('active');
+      
+      // Auto-load data for the tab
+      if (tabName === 'users') loadUsers();
+      if (tabName === 'orders') loadOrders();
+      if (tabName === 'delivery') loadDeliveryPersons();
+    }
+
+    function loadUsers() {
+      fetch('/admin/users/list')
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok) {
+            if (data.users && data.users.length > 0) {
+              displayUsers(data.users);
+            } else {
+              document.getElementById('users-list').innerHTML = '<p>No non-admin users found. Create some customers or delivery persons!</p>';
+            }
+          } else {
+            document.getElementById('users-list').innerHTML = '<p>Error: ' + (data.error || 'Unknown error') + '</p>';
+          }
+        })
+        .catch(err => {
+          document.getElementById('users-list').innerHTML = '<p>Error loading users: ' + err.message + '</p>';
+        });
+    }
+
+    function displayUsers(users) {
+      const container = document.getElementById('users-list');
+      if (users.length === 0) {
+        container.innerHTML = '<p>No users found.</p>';
+        return;
+      }
+      
+      let html = '<table><tr><th>ID</th><th>Username</th><th>Role</th><th>Name</th><th>Gender</th><th>Address</th><th>Actions</th></tr>';
+      users.forEach(user => {
+        html += `<tr>
+          <td>${user.id}</td>
+          <td>${user.username}</td>
+          <td>${user.role}</td>
+          <td>${user.name}</td>
+          <td>${user.gender}</td>
+          <td>${user.address}</td>
+          <td class="actions">
+            <button class="danger" onclick="deleteUser(${user.id}, '${user.username}')">Delete</button>
+          </td>
+        </tr>`;
+      });
+      html += '</table>';
+      container.innerHTML = html;
+    }
+
+    function createCustomer() {
+      const {u, p} = creds();
+      
+      const body = {
+        admin_username: u,
+        admin_password: p,
+        user_type: 'customer',
+        username: document.getElementById('new-user-username').value,
+        password: document.getElementById('new-user-password').value,
+        name: document.getElementById('new-user-name').value,
+        gender: document.getElementById('new-user-gender').value,
+        birth_date: document.getElementById('new-user-birthdate').value,
+        no_birth_date: document.getElementById('new-user-no-birthdate').checked,
+        address: document.getElementById('new-user-address').value,
+        postal_code: document.getElementById('new-user-postal').value,
+      };
+      
+      fetch('/admin/users/create', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok) {
+            alert('Customer created successfully!');
+            loadUsers();
+            document.getElementById('new-user-username').value = '';
+            document.getElementById('new-user-password').value = '';
+            document.getElementById('new-user-name').value = '';
+            document.getElementById('new-user-gender').value = '';
+            document.getElementById('new-user-birthdate').value = '';
+            document.getElementById('new-user-no-birthdate').checked = false;
+            document.getElementById('new-user-address').value = '';
+            document.getElementById('new-user-postal').value = '';
+          } else {
+            alert('Error: ' + (data.message || data.error || 'Unknown error'));
+          }
+        })
+        .catch(err => {
+          alert('Error creating customer: ' + err.message);
+        });
+    }
+
+    function createDeliveryPerson() {
+      const {u, p} = creds();
+      
+      const body = {
+        admin_username: u,
+        admin_password: p,
+        user_type: 'delivery',
+        username: document.getElementById('new-delivery-username').value,
+        password: document.getElementById('new-delivery-password').value,
+        name: document.getElementById('new-delivery-name').value,
+      };
+      
+      fetch('/admin/users/create', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok) {
+            alert('Delivery person created successfully!');
+            loadDeliveryPersons();
+            document.getElementById('new-delivery-username').value = '';
+            document.getElementById('new-delivery-password').value = '';
+            document.getElementById('new-delivery-name').value = '';
+          } else {
+            alert('Error: ' + (data.message || data.error || 'Unknown error'));
+          }
+        })
+        .catch(err => {
+          alert('Error creating delivery person: ' + err.message);
+        });
+    }
+
+    function deleteUser(id, username) {
+      if (!confirm(`Are you sure you want to delete user "${username}"? This will also delete all their orders.`)) return;
+      
+      const {u, p} = creds();
+      fetch('/admin/users/delete?id=' + id, {
+        method: 'DELETE',
+        headers: {'X-Username': u, 'X-Password': p}
+      })
+        .then(r => {
+          if (r.ok) {
+            alert('User deleted successfully!');
+            loadUsers();
+          } else {
+            return r.text().then(text => { throw new Error(text); });
+          }
+        })
+        .catch(err => {
+          alert('Error deleting user: ' + err.message);
+        });
+    }
+
+    // Orders Management
+    function loadOrders() {
+      fetch('/admin/orders/list')
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok && data.orders) {
+            displayOrders(data.orders);
+          } else {
+            document.getElementById('orders-list').innerHTML = '<p>No orders found.</p>';
+          }
+        })
+        .catch(err => {
+          document.getElementById('orders-list').innerHTML = '<p>Error loading orders.</p>';
+          console.error(err);
+        });
+    }
+
+    function displayOrders(orders) {
+      const container = document.getElementById('orders-list');
+      if (orders.length === 0) {
+        container.innerHTML = '<p>No orders found.</p>';
+        return;
+      }
+      
+      let html = '<table><tr><th>ID</th><th>Customer</th><th>Date</th><th>Status</th><th>Address</th><th>Postal Code</th><th>Actions</th></tr>';
+      orders.forEach(order => {
+        const date = new Date(order.timestamp).toLocaleString();
+        html += `<tr>
+          <td>${order.id}</td>
+          <td>${order.customer_name}</td>
+          <td>${date}</td>
+          <td>
+            <select onchange="updateOrderStatus(${order.id}, this.value)">
+              <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>Pending</option>
+              <option value="preparing" ${order.status === 'preparing' ? 'selected' : ''}>Preparing</option>
+              <option value="delivering" ${order.status === 'delivering' ? 'selected' : ''}>Delivering</option>
+              <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>Delivered</option>
+              <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+            </select>
+          </td>
+          <td>${order.delivery_address}</td>
+          <td>${order.postal_code}</td>
+          <td class="actions">
+            <button onclick="viewOrderDetails(${order.id})">View</button>
+            <button class="danger" onclick="deleteOrder(${order.id})">Delete</button>
+          </td>
+        </tr>`;
+      });
+      html += '</table>';
+      container.innerHTML = html;
+    }
+
+    function updateOrderStatus(orderId, status) {
+      const {u, p} = creds();
+      fetch('/admin/orders/update-status', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          admin_username: u,
+          admin_password: p,
+          order_id: orderId,
+          status: status
+        })
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok) {
+            alert('Order status updated!');
+            loadOrders();
+          } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+          }
+        })
+        .catch(err => {
+          alert('Error updating order: ' + err.message);
+        });
+    }
+
+    function viewOrderDetails(orderId) {
+      window.open(`/order-confirmation?order_id=${orderId}`, '_blank');
+    }
+
+    function deleteOrder(id) {
+      if (!confirm(`Are you sure you want to delete order #${id}?`)) return;
+      
+      const {u, p} = creds();
+      fetch('/admin/orders/delete?id=' + id, {
+        method: 'DELETE',
+        headers: {'X-Username': u, 'X-Password': p}
+      })
+        .then(r => {
+          if (r.ok) {
+            alert('Order deleted successfully!');
+            loadOrders();
+          } else {
+            return r.text().then(text => { throw new Error(text); });
+          }
+        })
+        .catch(err => {
+          alert('Error deleting order: ' + err.message);
+        });
+    }
+
+    // Delivery Persons Management
+    function loadDeliveryPersons() {
+      fetch('/admin/delivery/list')
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok && data.delivery_persons) {
+            displayDeliveryPersons(data.delivery_persons);
+          } else {
+            document.getElementById('delivery-list').innerHTML = '<p>No delivery persons found.</p>';
+          }
+        })
+        .catch(err => {
+          document.getElementById('delivery-list').innerHTML = '<p>Error loading delivery persons.</p>';
+          console.error(err);
+        });
+    }
+
+    function displayDeliveryPersons(persons) {
+      const container = document.getElementById('delivery-list');
+      if (persons.length === 0) {
+        container.innerHTML = '<p>No delivery persons found.</p>';
+        return;
+      }
+      
+      let html = '<table><tr><th>ID</th><th>Username</th><th>Name</th><th>Actions</th></tr>';
+      persons.forEach(person => {
+        html += `<tr>
+          <td>${person.id}</td>
+          <td>${person.username}</td>
+          <td>${person.name}</td>
+          <td class="actions">
+            <button class="danger" onclick="deleteDeliveryPerson(${person.id}, '${person.name}')">Delete</button>
+          </td>
+        </tr>`;
+      });
+      html += '</table>';
+      container.innerHTML = html;
+    }
+
+    function deleteDeliveryPerson(id, name) {
+      if (!confirm(`Are you sure you want to delete delivery person "${name}"?`)) return;
+      
+      const {u, p} = creds();
+      fetch('/admin/delivery/delete?id=' + id, {
+        method: 'DELETE',
+        headers: {'X-Username': u, 'X-Password': p}
+      })
+        .then(r => {
+          if (r.ok) {
+            alert('Delivery person deleted successfully!');
+            loadDeliveryPersons();
+          } else {
+            return r.text().then(text => { throw new Error(text); });
+          }
+        })
+        .catch(err => {
+          alert('Error deleting delivery person: ' + err.message);
+        });
+    }
+
+    // Ingredients Management (existing code)
     function listIngredients(){
       fetch('/admin/ingredient/list')
         .then(r=>r.json())
         .then(d=>{ document.getElementById('ingredients-list').textContent = JSON.stringify(d, null, 2); });
     }
+    
     function createIngredient(){
       const {u,p} = creds();
       const body = {
@@ -85,6 +521,7 @@
         .then(r=>r.ok?r.json():r.text())
         .then(d=>{ alert(typeof d==='string'?d:('Created '+d.Ingr?.Name||d.name)); listIngredients(); });
     }
+    
     function deleteIngredient(){
       const {u,p} = creds();
       const id = document.getElementById('ingr-del-id').value;
@@ -92,11 +529,14 @@
         .then(r=>{ if(r.ok){ alert('Deleted'); listIngredients(); } else { return r.text().then(t=>{ throw new Error(t); }); } })
         .catch(e=>alert(e.message));
     }
+    
+    // Pizzas Management (existing code)
     function listPizzas(){
       fetch('/admin/pizza/list')
         .then(r=>r.json())
         .then(d=>{ document.getElementById('pizzas-list').textContent = JSON.stringify(d, null, 2); });
     }
+    
     function createPizza(){
       const {u,p} = creds();
       const name = document.getElementById('pizza-name').value;
@@ -105,6 +545,7 @@
         .then(r=>r.ok?r.json():r.text())
         .then(d=>{ alert(typeof d==='string'?d:('Created '+(d.Name||name))); listPizzas(); });
     }
+    
     function deletePizza(){
       const {u,p} = creds();
       const id = document.getElementById('pizza-del-id').value;
@@ -112,6 +553,9 @@
         .then(r=>{ if(r.ok){ alert('Deleted'); listPizzas(); } else { return r.text().then(t=>{ throw new Error(t); }); } })
         .catch(e=>alert(e.message));
     }
+
+    // Load initial data
+    loadUsers();
   </script>
 </body>
 </html>
