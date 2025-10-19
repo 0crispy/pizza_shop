@@ -7,6 +7,7 @@ import (
 type Order struct {
 	ID              int       `json:"id"`
 	CustomerID      int       `json:"customer_id"`
+	CustomerName    string    `json:"customer_name"`
 	Timestamp       time.Time `json:"timestamp"`
 	Status          string    `json:"status"`
 	PostalCode      string    `json:"postal_code"`
@@ -14,10 +15,11 @@ type Order struct {
 }
 
 type OrderPizza struct {
-	ID       int `json:"id"`
-	OrderID  int `json:"order_id"`
-	PizzaID  int `json:"pizza_id"`
-	Quantity int `json:"quantity"`
+	ID        int    `json:"id"`
+	OrderID   int    `json:"order_id"`
+	PizzaID   int    `json:"pizza_id"`
+	PizzaName string `json:"pizza_name"`
+	Quantity  int    `json:"quantity"`
 }
 
 type OrderExtraItem struct {
@@ -116,13 +118,15 @@ func GetOrderDetails(orderID int) (*OrderDetails, error) {
 	var details OrderDetails
 
 	query := `
-		SELECT id, customer_id, timestamp, status, postal_code, delivery_address
-		FROM ` + "`order`" + `
-		WHERE id = ?
+		SELECT o.id, o.customer_id, c.name, o.timestamp, o.status, o.postal_code, o.delivery_address
+		FROM ` + "`order`" + ` o
+		JOIN customer c ON o.customer_id = c.id
+		WHERE o.id = ?
 	`
 	err := DATABASE.QueryRow(query, orderID).Scan(
 		&details.Order.ID,
 		&details.Order.CustomerID,
+		&details.Order.CustomerName,
 		&details.Order.Timestamp,
 		&details.Order.Status,
 		&details.Order.PostalCode,
@@ -132,7 +136,12 @@ func GetOrderDetails(orderID int) (*OrderDetails, error) {
 		return nil, err
 	}
 
-	pizzaQuery := `SELECT id, order_id, pizza_id, quantity FROM order_pizza WHERE order_id = ?`
+	pizzaQuery := `
+		SELECT op.id, op.order_id, op.pizza_id, p.name, op.quantity 
+		FROM order_pizza op
+		JOIN pizza p ON op.pizza_id = p.id
+		WHERE op.order_id = ?
+	`
 	pizzaRows, err := DATABASE.Query(pizzaQuery, orderID)
 	if err != nil {
 		return nil, err
@@ -141,7 +150,7 @@ func GetOrderDetails(orderID int) (*OrderDetails, error) {
 
 	for pizzaRows.Next() {
 		var op OrderPizza
-		err := pizzaRows.Scan(&op.ID, &op.OrderID, &op.PizzaID, &op.Quantity)
+		err := pizzaRows.Scan(&op.ID, &op.OrderID, &op.PizzaID, &op.PizzaName, &op.Quantity)
 		if err != nil {
 			return nil, err
 		}
