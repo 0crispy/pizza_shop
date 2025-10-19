@@ -745,11 +745,11 @@ func AdminCreateUserHandler(w http.ResponseWriter, r *http.Request) {
 		Username      string `json:"username"`
 		Password      string `json:"password"`
 		Name          string `json:"name"`
-		Gender      string `json:"gender"`
-		BirthDate   string `json:"birth_date"`
-		NoBirthDate bool   `json:"no_birth_date"`
-		Address     string `json:"address"`
-		PostalCode  string `json:"postal_code"`
+		Gender        string `json:"gender"`
+		BirthDate     string `json:"birth_date"`
+		NoBirthDate   bool   `json:"no_birth_date"`
+		Address       string `json:"address"`
+		PostalCode    string `json:"postal_code"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
