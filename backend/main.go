@@ -40,6 +40,16 @@ func main() {
 	http.HandleFunc("/order/list", handlers.GetOrdersHandler)
 	http.HandleFunc("/order/details", handlers.GetOrderDetailsHandler)
 
+	// Admin management routes
+	http.HandleFunc("/admin/users/list", handlers.AdminGetAllUsersHandler)
+	http.HandleFunc("/admin/users/delete", handlers.AdminDeleteUserHandler)
+	http.HandleFunc("/admin/users/create", handlers.AdminCreateUserHandler)
+	http.HandleFunc("/admin/orders/list", handlers.AdminGetAllOrdersHandler)
+	http.HandleFunc("/admin/orders/delete", handlers.AdminDeleteOrderHandler)
+	http.HandleFunc("/admin/orders/update-status", handlers.AdminUpdateOrderStatusHandler)
+	http.HandleFunc("/admin/delivery/list", handlers.AdminGetAllDeliveryPersonsHandler)
+	http.HandleFunc("/admin/delivery/delete", handlers.AdminDeleteDeliveryPersonHandler)
+
 	http.HandleFunc("/delivery_person", handlers.DeliveryPerson)
 
 	fmt.Printf("Server running on http://localhost:%s\n", PORT)

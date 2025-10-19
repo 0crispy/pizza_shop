@@ -432,8 +432,6 @@ func AdminDeletePizzaHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// POST /order/create
-// Create a new order from cart items
 func CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -495,7 +493,6 @@ func CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Convert cart items to the format expected by CreateOrderWithTransaction
 	pizzaItems := make([]struct {
 		PizzaID  int
 		Quantity int
@@ -506,13 +503,12 @@ func CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 		pizzaItems[i].Quantity = item.Quantity
 	}
 
-	// Create order with transaction (will rollback if any step fails)
 	orderID, err := database.CreateOrderWithTransaction(
 		customerID,
 		req.DeliveryAddress,
 		req.PostalCode,
 		pizzaItems,
-		nil, // No extra items for now
+		nil,
 	)
 	if err != nil {
 		type Msg struct {
@@ -530,8 +526,6 @@ func CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(Msg{Ok: true, OrderID: orderID})
 }
 
-// POST /order/list
-// Get all orders for the auth customer
 func GetOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -595,8 +589,6 @@ func GetOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(Msg{Ok: true, Orders: orders})
 }
 
-// POST /order/details
-// Get detailed information for a specific order
 func GetOrderDetailsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -614,33 +606,13 @@ func GetOrderDetailsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	success, _ := database.TryLogin(req.Username, req.Password)
+	success, role := database.TryLogin(req.Username, req.Password)
 	if !success {
 		type Msg struct {
 			Ok    bool   `json:"ok"`
 			Error string `json:"error"`
 		}
 		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Invalid credentials"})
-		return
-	}
-
-	userID, err := database.GetUserIDFromUsername(req.Username)
-	if err != nil {
-		type Msg struct {
-			Ok    bool   `json:"ok"`
-			Error string `json:"error"`
-		}
-		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "User not found"})
-		return
-	}
-
-	customerID, err := database.GetCustomerIDFromUserID(userID)
-	if err != nil {
-		type Msg struct {
-			Ok    bool   `json:"ok"`
-			Error string `json:"error"`
-		}
-		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Customer not found"})
 		return
 	}
 
@@ -654,13 +626,36 @@ func GetOrderDetailsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if details.Order.CustomerID != customerID {
-		type Msg struct {
-			Ok    bool   `json:"ok"`
-			Error string `json:"error"`
+	// Admins can view any order, customers can only view their own
+	if role != "ADMIN" {
+		userID, err := database.GetUserIDFromUsername(req.Username)
+		if err != nil {
+			type Msg struct {
+				Ok    bool   `json:"ok"`
+				Error string `json:"error"`
+			}
+			json.NewEncoder(w).Encode(Msg{Ok: false, Error: "User not found"})
+			return
 		}
-		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Unauthorized"})
-		return
+
+		customerID, err := database.GetCustomerIDFromUserID(userID)
+		if err != nil {
+			type Msg struct {
+				Ok    bool   `json:"ok"`
+				Error string `json:"error"`
+			}
+			json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Customer not found"})
+			return
+		}
+
+		if details.Order.CustomerID != customerID {
+			type Msg struct {
+				Ok    bool   `json:"ok"`
+				Error string `json:"error"`
+			}
+			json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Unauthorized"})
+			return
+		}
 	}
 
 	type Msg struct {
@@ -676,4 +671,306 @@ func DeliveryPerson(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 	fmt.Fprintln(w, string(html_string))
+}
+
+func AdminGetAllUsersHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	users, err := database.GetAllUsers()
+	if err != nil {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Failed to get users"})
+		return
+	}
+
+	type Msg struct {
+		Ok    bool                     `json:"ok"`
+		Users []map[string]interface{} `json:"users"`
+	}
+	json.NewEncoder(w).Encode(Msg{Ok: true, Users: users})
+}
+
+func AdminDeleteUserHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	username := r.Header.Get("X-Username")
+	password := r.Header.Get("X-Password")
+
+	success, role := database.TryLogin(username, password)
+	if !success || role != "ADMIN" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userID := r.URL.Query().Get("id")
+	if userID == "" {
+		http.Error(w, "User ID required", http.StatusBadRequest)
+		return
+	}
+
+	var id int
+	fmt.Sscanf(userID, "%d", &id)
+
+	err := database.DeleteUser(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	type Msg struct {
+		Ok bool `json:"ok"`
+	}
+	json.NewEncoder(w).Encode(Msg{Ok: true})
+}
+
+func AdminCreateUserHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		AdminUsername string `json:"admin_username"`
+		AdminPassword string `json:"admin_password"`
+		UserType      string `json:"user_type"`
+		Username      string `json:"username"`
+		Password      string `json:"password"`
+		Name          string `json:"name"`
+		Gender      string `json:"gender"`
+		BirthDate   string `json:"birth_date"`
+		NoBirthDate bool   `json:"no_birth_date"`
+		Address     string `json:"address"`
+		PostalCode  string `json:"postal_code"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	success, role := database.TryLogin(req.AdminUsername, req.AdminPassword)
+	if !success {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Invalid admin credentials"})
+		return
+	}
+	if role != "ADMIN" {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "User is not an admin (role: " + role + ")"})
+		return
+	}
+
+	if req.UserType == "customer" {
+		customer := database.Customer{
+			Username:    req.Username,
+			Password:    req.Password,
+			Name:        req.Name,
+			Gender:      req.Gender,
+			BirthDate:   req.BirthDate,
+			NoBirthDate: req.NoBirthDate,
+			Address:     req.Address,
+			PostCode:    req.PostalCode,
+		}
+		ok, msg := database.TryAddCustomer(customer)
+		type Msg struct {
+			Ok      bool   `json:"ok"`
+			Message string `json:"message,omitempty"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: ok, Message: msg})
+	} else if req.UserType == "delivery" {
+		deliveryPerson := database.DeliveryPerson{
+			Username: req.Username,
+			Password: req.Password,
+			Name:     req.Name,
+		}
+		ok, msg := database.TryAddDeliveryPerson(deliveryPerson)
+		type Msg struct {
+			Ok      bool   `json:"ok"`
+			Message string `json:"message,omitempty"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: ok, Message: msg})
+	} else {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Invalid user type"})
+	}
+}
+
+func AdminGetAllOrdersHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	orders, err := database.GetAllOrders()
+	if err != nil {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Failed to get orders"})
+		return
+	}
+
+	type Msg struct {
+		Ok     bool             `json:"ok"`
+		Orders []database.Order `json:"orders"`
+	}
+	json.NewEncoder(w).Encode(Msg{Ok: true, Orders: orders})
+}
+
+func AdminDeleteOrderHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	username := r.Header.Get("X-Username")
+	password := r.Header.Get("X-Password")
+
+	success, role := database.TryLogin(username, password)
+	if !success || role != "ADMIN" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	orderID := r.URL.Query().Get("id")
+	if orderID == "" {
+		http.Error(w, "Order ID required", http.StatusBadRequest)
+		return
+	}
+
+	var id int
+	fmt.Sscanf(orderID, "%d", &id)
+
+	err := database.DeleteOrder(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	type Msg struct {
+		Ok bool `json:"ok"`
+	}
+	json.NewEncoder(w).Encode(Msg{Ok: true})
+}
+
+func AdminUpdateOrderStatusHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		AdminUsername string `json:"admin_username"`
+		AdminPassword string `json:"admin_password"`
+		OrderID       int    `json:"order_id"`
+		Status        string `json:"status"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	success, role := database.TryLogin(req.AdminUsername, req.AdminPassword)
+	if !success || role != "ADMIN" {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Unauthorized"})
+		return
+	}
+
+	err := database.UpdateOrderStatus(req.OrderID, req.Status)
+	if err != nil {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Failed to update order"})
+		return
+	}
+
+	type Msg struct {
+		Ok bool `json:"ok"`
+	}
+	json.NewEncoder(w).Encode(Msg{Ok: true})
+}
+
+func AdminGetAllDeliveryPersonsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	deliveryPersons, err := database.GetAllDeliveryPersons()
+	if err != nil {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Failed to get delivery persons"})
+		return
+	}
+
+	type Msg struct {
+		Ok              bool                     `json:"ok"`
+		DeliveryPersons []map[string]interface{} `json:"delivery_persons"`
+	}
+	json.NewEncoder(w).Encode(Msg{Ok: true, DeliveryPersons: deliveryPersons})
+}
+
+func AdminDeleteDeliveryPersonHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	username := r.Header.Get("X-Username")
+	password := r.Header.Get("X-Password")
+
+	success, role := database.TryLogin(username, password)
+	if !success || role != "ADMIN" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userID := r.URL.Query().Get("id")
+	if userID == "" {
+		http.Error(w, "User ID required", http.StatusBadRequest)
+		return
+	}
+
+	var id int
+	fmt.Sscanf(userID, "%d", &id)
+
+	err := database.DeleteDeliveryPerson(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	type Msg struct {
+		Ok bool `json:"ok"`
+	}
+	json.NewEncoder(w).Encode(Msg{Ok: true})
 }
