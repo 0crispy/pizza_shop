@@ -1,6 +1,7 @@
 package database
 
 import (
+	"database/sql"
 	"time"
 )
 
@@ -276,4 +277,37 @@ func DeleteOrder(orderID int) error {
 	query := `DELETE FROM ` + "`order`" + ` WHERE id = ?`
 	_, err := DATABASE.Exec(query, orderID)
 	return err
+}
+
+// Admin function to get all orders
+func GetAllOrders() ([]Order, error) {
+	query := `
+		SELECT o.id, o.customer_id, c.name as customer_name, o.timestamp, o.status, o.postal_code, o.delivery_address
+		FROM ` + "`order`" + ` o
+		LEFT JOIN customer c ON o.customer_id = c.id
+		ORDER BY o.timestamp DESC
+	`
+	rows, err := DATABASE.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders []Order
+	for rows.Next() {
+		var order Order
+		var customerName sql.NullString
+		err := rows.Scan(&order.ID, &order.CustomerID, &customerName, &order.Timestamp, &order.Status, &order.PostalCode, &order.DeliveryAddress)
+		if err != nil {
+			return nil, err
+		}
+		if customerName.Valid {
+			order.CustomerName = customerName.String
+		} else {
+			order.CustomerName = "Unknown"
+		}
+		orders = append(orders, order)
+	}
+
+	return orders, nil
 }

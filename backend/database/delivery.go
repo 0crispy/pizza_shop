@@ -57,3 +57,61 @@ func TryAddDeliveryPerson(
 	}
 	return true, ""
 }
+
+// Admin functions for delivery person management
+
+func GetAllDeliveryPersons() ([]map[string]interface{}, error) {
+	query := `
+		SELECT u.id, u.username, dp.name
+		FROM user u
+		INNER JOIN delivery_person dp ON u.id = dp.user_id
+		WHERE u.role = 'DELIVERY'
+		ORDER BY dp.name
+	`
+	rows, err := DATABASE.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var deliveryPersons []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var username, name string
+		err := rows.Scan(&id, &username, &name)
+		if err != nil {
+			return nil, err
+		}
+
+		person := map[string]interface{}{
+			"id":       id,
+			"username": username,
+			"name":     name,
+		}
+		deliveryPersons = append(deliveryPersons, person)
+	}
+
+	return deliveryPersons, nil
+}
+
+func DeleteDeliveryPerson(userID int) error {
+	tx, err := DATABASE.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Delete from delivery_person table
+	_, err = tx.Exec("DELETE FROM delivery_person WHERE user_id = ?", userID)
+	if err != nil {
+		return err
+	}
+
+	// Delete from user table
+	_, err = tx.Exec("DELETE FROM user WHERE id = ? AND role = 'DELIVERY'", userID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}

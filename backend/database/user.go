@@ -197,9 +197,17 @@ func TryLogin(username string, password string) (bool, string) {
 	err = bcrypt.CompareHashAndPassword([]byte(passwordDB), preHash[:])
 	if err != nil {
 		return false, "Incorrect password"
-	} else {
-		return true, ""
 	}
+
+	// Get user role
+	var role string
+	err = DATABASE.QueryRow("SELECT role FROM user WHERE username = ?", username).Scan(&role)
+	if err != nil {
+		log.Println(err)
+		return false, "Something went wrong. Try again"
+	}
+
+	return true, role
 }
 
 func generateSalt(size int) (string, error) {
@@ -323,4 +331,118 @@ func GetCustomerDetails(username string, password string) (Customer, error) {
 		return Customer{}, errors.New("customer not found")
 	}
 
+}
+
+// Admin functions for user management
+
+func GetAllUsers() ([]map[string]interface{}, error) {
+	query := `
+		SELECT u.id, u.username, u.role, 
+			COALESCE(c.name, dp.name, 'N/A') as name,
+			COALESCE(c.gender, 'N/A') as gender,
+			COALESCE(c.birth_date, '') as birth_date,
+			COALESCE(c.address, 'N/A') as address,
+			COALESCE(c.postal_code, 'N/A') as postal_code
+		FROM user u
+		LEFT JOIN customer c ON u.id = c.user_id
+		LEFT JOIN delivery_person dp ON u.id = dp.user_id
+		WHERE u.role != 'ADMIN'
+		ORDER BY u.id DESC
+	`
+	rows, err := DATABASE.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var username, role, name, gender, address, postalCode string
+		var birthDate sql.NullString
+		err := rows.Scan(&id, &username, &role, &name, &gender, &birthDate, &address, &postalCode)
+		if err != nil {
+			return nil, err
+		}
+
+		birthDateStr := ""
+		if birthDate.Valid {
+			birthDateStr = birthDate.String
+		}
+
+		user := map[string]interface{}{
+			"id":          id,
+			"username":    username,
+			"role":        role,
+			"name":        name,
+			"gender":      gender,
+			"birth_date":  birthDateStr,
+			"address":     address,
+			"postal_code": postalCode,
+		}
+		users = append(users, user)
+	}
+
+	// Return empty array instead of nil if no users found
+	if users == nil {
+		users = []map[string]interface{}{}
+	}
+
+	return users, nil
+}
+
+func DeleteUser(userID int) error {
+	// Start transaction
+	tx, err := DATABASE.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Get user role to determine what to delete
+	var role string
+	err = tx.QueryRow("SELECT role FROM user WHERE id = ?", userID).Scan(&role)
+	if err != nil {
+		return err
+	}
+
+	// Don't allow deleting admin users
+	if role == "ADMIN" {
+		return errors.New("cannot delete admin user")
+	}
+
+	// Delete customer or delivery_person records
+	if role == "CUSTOMER" {
+		// Get customer ID
+		var customerID int
+		err = tx.QueryRow("SELECT id FROM customer WHERE user_id = ?", userID).Scan(&customerID)
+		if err == nil {
+			// Delete orders and order items for this customer
+			_, err = tx.Exec("DELETE op FROM order_pizza op INNER JOIN `order` o ON op.order_id = o.id WHERE o.customer_id = ?", customerID)
+			if err != nil {
+				return err
+			}
+			_, err = tx.Exec("DELETE FROM `order` WHERE customer_id = ?", customerID)
+			if err != nil {
+				return err
+			}
+		}
+		_, err = tx.Exec("DELETE FROM customer WHERE user_id = ?", userID)
+		if err != nil {
+			return err
+		}
+	} else if role == "DELIVERY" {
+		_, err = tx.Exec("DELETE FROM delivery_person WHERE user_id = ?", userID)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Delete user
+	_, err = tx.Exec("DELETE FROM user WHERE id = ?", userID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
