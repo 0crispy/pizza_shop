@@ -37,8 +37,8 @@ go build backend/main.go
 - [ ] Ordering <-A
     - [x] Order CRUD
     - [x] Ability to confirm order
-    - [ ] Order confirmation screen
-    - [ ] Transactions, rollback
+    - [x] Order confirmation screen
+    - [x] Transactions, rollback
 - [x] Delivery person <-K
     - [x] Delivery person CRUD
     - [x] Delivery person login

@@ -495,7 +495,25 @@ func CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orderID, err := database.CreateOrder(customerID, req.DeliveryAddress, req.PostalCode)
+	// Convert cart items to the format expected by CreateOrderWithTransaction
+	pizzaItems := make([]struct {
+		PizzaID  int
+		Quantity int
+	}, len(req.CartItems))
+
+	for i, item := range req.CartItems {
+		pizzaItems[i].PizzaID = item.ID
+		pizzaItems[i].Quantity = item.Quantity
+	}
+
+	// Create order with transaction (will rollback if any step fails)
+	orderID, err := database.CreateOrderWithTransaction(
+		customerID,
+		req.DeliveryAddress,
+		req.PostalCode,
+		pizzaItems,
+		nil, // No extra items for now
+	)
 	if err != nil {
 		type Msg struct {
 			Ok    bool   `json:"ok"`
@@ -503,18 +521,6 @@ func CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Failed to create order"})
 		return
-	}
-
-	for _, item := range req.CartItems {
-		err := database.AddPizzaToOrder(orderID, item.ID, item.Quantity)
-		if err != nil {
-			type Msg struct {
-				Ok    bool   `json:"ok"`
-				Error string `json:"error"`
-			}
-			json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Failed to add items to order"})
-			return
-		}
 	}
 
 	type Msg struct {

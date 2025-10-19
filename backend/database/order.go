@@ -36,6 +36,72 @@ type OrderDetails struct {
 	TotalPrice float64          `json:"total_price"`
 }
 
+// CreateOrderWithTransaction creates an order and adds all items in a single transaction
+// If any step fails, the entire transaction is rolled back
+func CreateOrderWithTransaction(customerID int, deliveryAddress, postalCode string, pizzaItems []struct {
+	PizzaID  int
+	Quantity int
+}, extraItems []struct {
+	ExtraItemID int
+	Quantity    int
+}) (int, error) {
+	// Begin transaction
+	tx, err := DATABASE.Begin()
+	if err != nil {
+		return 0, err
+	}
+
+	// Defer rollback in case of error
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Create the order
+	query := `
+		INSERT INTO ` + "`order`" + ` (customer_id, delivery_address, postal_code, status, timestamp)
+		VALUES (?, ?, ?, 'pending', NOW())
+	`
+	result, err := tx.Exec(query, customerID, deliveryAddress, postalCode)
+	if err != nil {
+		return 0, err
+	}
+
+	orderID, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+
+	// Add pizzas to the order
+	pizzaQuery := `INSERT INTO order_pizza (order_id, pizza_id, quantity) VALUES (?, ?, ?)`
+	for _, item := range pizzaItems {
+		_, err = tx.Exec(pizzaQuery, orderID, item.PizzaID, item.Quantity)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	// Add extra items to the order (if any)
+	if len(extraItems) > 0 {
+		extraQuery := `INSERT INTO order_extra_item (order_id, extra_item_id, quantity) VALUES (?, ?, ?)`
+		for _, item := range extraItems {
+			_, err = tx.Exec(extraQuery, orderID, item.ExtraItemID, item.Quantity)
+			if err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	// Commit the transaction
+	err = tx.Commit()
+	if err != nil {
+		return 0, err
+	}
+
+	return int(orderID), nil
+}
+
 func CreateOrder(customerID int, deliveryAddress, postalCode string) (int, error) {
 	query := `
 		INSERT INTO ` + "`order`" + ` (customer_id, delivery_address, postal_code, status, timestamp)
