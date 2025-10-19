@@ -32,6 +32,9 @@ func main() {
 	http.HandleFunc("/cart", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "frontend/cart.html")
 	})
+	http.HandleFunc("/order-confirmation", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "frontend/order-confirmation.html")
+	})
 
 	http.HandleFunc("/order/create", handlers.CreateOrderHandler)
 	http.HandleFunc("/order/list", handlers.GetOrdersHandler)

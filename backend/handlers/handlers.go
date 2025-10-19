@@ -59,8 +59,8 @@ func LoginPostHandler(w http.ResponseWriter, r *http.Request) {
 		success = false
 	}
 
-	role,err := database.GetUserRole(username)
-	if err != nil{
+	role, err := database.GetUserRole(username)
+	if err != nil {
 		msg = err.Error()
 		success = false
 	}
@@ -267,21 +267,6 @@ func isAdminFromHeaders(r *http.Request) bool {
 		return false
 	}
 	return true
-}
-func isAdminRequest(r *http.Request) (bool, string) {
-	var a adminAuth
-	if err := json.NewDecoder(r.Body).Decode(&a); err != nil {
-		return false, "invalid json"
-	}
-	ok, _ := database.TryLogin(a.Username, a.Password)
-	if !ok {
-		return false, "invalid credentials"
-	}
-	role, err := database.GetUserRole(a.Username)
-	if err != nil || role != database.AdminRole.String() {
-		return false, "not admin"
-	}
-	return true, ""
 }
 
 // POST /admin/ingredient/create {username,password,name,costCents,hasMeat,hasAnimalProducts}
@@ -633,6 +618,16 @@ func GetOrderDetailsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	customerID, err := database.GetCustomerIDFromUserID(userID)
+	if err != nil {
+		type Msg struct {
+			Ok    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Customer not found"})
+		return
+	}
+
 	details, err := database.GetOrderDetails(req.OrderID)
 	if err != nil {
 		type Msg struct {
@@ -643,7 +638,7 @@ func GetOrderDetailsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if details.Order.CustomerID != userID {
+	if details.Order.CustomerID != customerID {
 		type Msg struct {
 			Ok    bool   `json:"ok"`
 			Error string `json:"error"`

@@ -141,8 +141,7 @@
         
         if (data.ok) {
           localStorage.removeItem('pizzaCart');
-          alert('Order placed successfully! Order ID: ' + data.order_id);
-          window.location = '/home';
+          window.location.href = '/order-confirmation?order_id=' + data.order_id;
         } else {
           alert('Error: ' + (data.error || 'Failed to place order'));
         }

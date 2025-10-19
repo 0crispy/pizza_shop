@@ -23,7 +23,7 @@ func Init() {
 	fmt.Println(pass)
 	PASSWORD_HASH_PEPPER = []byte(os.Getenv("DB_PEPPER"))
 
-	dsn := fmt.Sprintf("%s:%s@tcp(127.0.0.1:3306)/pizza_shop", user, pass)
+	dsn := fmt.Sprintf("%s:%s@tcp(127.0.0.1:3306)/pizza_shop?parseTime=true&loc=Local", user, pass)
 
 	var err error
 	DATABASE, err = sql.Open("mysql", dsn)

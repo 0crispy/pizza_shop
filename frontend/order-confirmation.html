@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order Confirmation - Pizza Shop</title>
+  <script>
+    function logout(){
+      try {
+        sessionStorage.removeItem('username');
+        sessionStorage.removeItem('password');
+      } catch(_) {}
+      window.location = '/login?logout=1';
+    }
+
+    async function ensureAuthAndSetupNav(){
+      const u = sessionStorage.getItem('username');
+      const p = sessionStorage.getItem('password');
+      if (!u || !p) { 
+        window.location = '/login'; 
+        return; 
+      }
+      document.getElementById('connected_as').textContent = 'Connected as: ' + u + '.';
+      try {
+        const r = await fetch('/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:u,password:p}) });
+        const data = await r.json();
+        if (!data.ok) { 
+          window.location = '/login'; 
+          return; 
+        }
+        if (data.isAdmin) {
+          const adminLink = document.getElementById('admin-link');
+          if (adminLink) adminLink.style.display = 'inline-block';
+        }
+      } catch (e) {
+        // If the check fails, we silently keep user on page
+      }
+      updateCartCount();
+    }
+
+    function updateCartCount() {
+      const cart = JSON.parse(localStorage.getItem('pizzaCart') || '[]');
+      const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+      const cartLink = document.getElementById('cart-link');
+      if (cartLink) {
+        cartLink.textContent = 'Cart (' + count + ')';
+      }
+    }
+
+    async function loadOrderDetails() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const orderID = urlParams.get('order_id');
+      
+      if (!orderID) {
+        document.getElementById('order-details').innerHTML = '<p>No order ID provided.</p>';
+        return;
+      }
+
+      const username = sessionStorage.getItem('username');
+      const password = sessionStorage.getItem('password');
+
+      try {
+        const response = await fetch('/order/details', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: username,
+            password: password,
+            order_id: parseInt(orderID)
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.ok) {
+          displayOrderDetails(data.order);
+        } else {
+          document.getElementById('order-details').innerHTML = '<p>Error loading order: ' + (data.error || 'Unknown error') + '</p>';
+        }
+      } catch (err) {
+        document.getElementById('order-details').innerHTML = '<p>Error loading order details: ' + err.message + '</p>';
+      }
+    }
+
+    function displayOrderDetails(orderDetails) {
+      const container = document.getElementById('order-details');
+      
+      const order = orderDetails.order;
+      const pizzas = orderDetails.pizzas || [];
+      
+      let html = '<h2>Order #' + order.id + '</h2>';
+      html += '<p><strong>Customer:</strong> ' + order.customer_name + '</p>';
+      html += '<p><strong>Status:</strong> ' + order.status + '</p>';
+      html += '<p><strong>Order Time:</strong> ' + new Date(order.timestamp).toLocaleString('en-US', { 
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit', 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit',
+        hour12: false 
+      }) + '</p>';
+      html += '<p><strong>Delivery Address:</strong> ' + order.delivery_address + '</p>';
+      html += '<p><strong>Postal Code:</strong> ' + order.postal_code + '</p>';
+      
+      html += '<h3>Items Ordered:</h3>';
+      html += '<table>';
+      html += '<thead><tr><th>Pizza</th><th>Quantity</th></tr></thead>';
+      html += '<tbody>';
+      
+      pizzas.forEach(pizza => {
+        html += '<tr>';
+        html += '<td>' + pizza.pizza_name + '</td>';
+        html += '<td>' + pizza.quantity + '</td>';
+        html += '</tr>';
+      });
+      
+      html += '</tbody></table>';
+      
+      html += '<p><strong>Total Price:</strong> $' + orderDetails.total_price.toFixed(2) + '</p>';
+      
+      container.innerHTML = html;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      ensureAuthAndSetupNav();
+      loadOrderDetails();
+    });
+  </script>
+</head>
+<body>
+  <nav>
+    <a href="/home">Home</a>
+    <a href="/account">Account</a>
+    <a id="admin-link" href="/admin" style="display:none;">Admin</a>
+    <a id="cart-link" href="/cart">Cart (0)</a>
+    <a href="#" onclick="logout(); return false;">Logout</a>
+  </nav>
+  <main class="container">
+    <h1>Order Confirmation</h1>
+    <p id="connected_as">Connected as: ?</p>
+    
+    <div class="success-message">
+      <p>✓ Your order has been placed successfully!</p>
+    </div>
+    
+    <div id="order-details">
+      <p>Loading order details...</p>
+    </div>
+    
+    <div style="margin-top: 20px;">
+      <a href="/home"><button style="padding: 10px 20px;">Back to Home</button></a>
+    </div>
+  </main>
+</body>
+</html>
