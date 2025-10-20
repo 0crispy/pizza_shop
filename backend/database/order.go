@@ -187,13 +187,14 @@ func GetOrderDetails(orderID int) (*OrderDetails, error) {
 	query := `
 		SELECT o.id, o.customer_id, c.name, o.timestamp, o.status, o.postal_code, o.delivery_address
 		FROM ` + "`order`" + ` o
-		JOIN customer c ON o.customer_id = c.id
+		LEFT JOIN customer c ON o.customer_id = c.id
 		WHERE o.id = ?
 	`
+	var customerName sql.NullString
 	err := DATABASE.QueryRow(query, orderID).Scan(
 		&details.Order.ID,
 		&details.Order.CustomerID,
-		&details.Order.CustomerName,
+		&customerName,
 		&details.Order.Timestamp,
 		&details.Order.Status,
 		&details.Order.PostalCode,
@@ -201,6 +202,12 @@ func GetOrderDetails(orderID int) (*OrderDetails, error) {
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	if customerName.Valid {
+		details.Order.CustomerName = customerName.String
+	} else {
+		details.Order.CustomerName = "Unknown"
 	}
 
 	pizzaQuery := `
