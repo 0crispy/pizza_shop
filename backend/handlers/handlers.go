@@ -444,8 +444,9 @@ func CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 		DeliveryAddress string `json:"delivery_address"`
 		PostalCode      string `json:"postal_code"`
 		CartItems       []struct {
-			ID       int `json:"id"`
-			Quantity int `json:"quantity"`
+			ID       int    `json:"id"`
+			Quantity int    `json:"quantity"`
+			Type     string `json:"type"` // "pizza" or "extra"
 		} `json:"cart_items"`
 	}
 
@@ -493,14 +494,35 @@ func CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pizzaItems := make([]struct {
+	// Separate pizzas and extra items
+	var pizzaItems []struct {
 		PizzaID  int
 		Quantity int
-	}, len(req.CartItems))
+	}
+	var extraItems []struct {
+		ExtraItemID int
+		Quantity    int
+	}
 
-	for i, item := range req.CartItems {
-		pizzaItems[i].PizzaID = item.ID
-		pizzaItems[i].Quantity = item.Quantity
+	for _, item := range req.CartItems {
+		if item.Type == "extra" {
+			extraItems = append(extraItems, struct {
+				ExtraItemID int
+				Quantity    int
+			}{
+				ExtraItemID: item.ID,
+				Quantity:    item.Quantity,
+			})
+		} else {
+			// Default to pizza if type is missing or "pizza"
+			pizzaItems = append(pizzaItems, struct {
+				PizzaID  int
+				Quantity int
+			}{
+				PizzaID:  item.ID,
+				Quantity: item.Quantity,
+			})
+		}
 	}
 
 	orderID, err := database.CreateOrderWithTransaction(
@@ -508,7 +530,7 @@ func CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 		req.DeliveryAddress,
 		req.PostalCode,
 		pizzaItems,
-		nil,
+		extraItems,
 	)
 	if err != nil {
 		fmt.Println(err)
@@ -619,6 +641,7 @@ func GetOrderDetailsHandler(w http.ResponseWriter, r *http.Request) {
 
 	details, err := database.GetOrderDetails(req.OrderID)
 	if err != nil {
+		fmt.Println("GetOrderDetails error:", err)
 		type Msg struct {
 			Ok    bool   `json:"ok"`
 			Error string `json:"error"`
@@ -974,4 +997,41 @@ func AdminDeleteDeliveryPersonHandler(w http.ResponseWriter, r *http.Request) {
 		Ok bool `json:"ok"`
 	}
 	json.NewEncoder(w).Encode(Msg{Ok: true})
+}
+
+func ListExtraItemsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	query := `SELECT id, name, category, price, description FROM extra_item ORDER BY category, name`
+	rows, err := database.DATABASE.Query(query)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var items []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var name, category, description string
+		var price float64
+		err := rows.Scan(&id, &name, &category, &price, &description)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		items = append(items, map[string]interface{}{
+			"id":          id,
+			"name":        name,
+			"category":    category,
+			"price":       price,
+			"description": description,
+		})
+	}
+
+	json.NewEncoder(w).Encode(items)
 }

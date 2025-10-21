@@ -39,6 +39,7 @@ func main() {
 	http.HandleFunc("/order/create", handlers.CreateOrderHandler)
 	http.HandleFunc("/order/list", handlers.GetOrdersHandler)
 	http.HandleFunc("/order/details", handlers.GetOrderDetailsHandler)
+	http.HandleFunc("/extra-items/list", handlers.ListExtraItemsHandler)
 
 	// Admin management routes
 	http.HandleFunc("/admin/users/list", handlers.AdminGetAllUsersHandler)

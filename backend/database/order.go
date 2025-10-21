@@ -62,7 +62,7 @@ func CreateOrderWithTransaction(customerID int, deliveryAddress, postalCode stri
 	// Create the order
 	query := `
 		INSERT INTO ` + "`orders`" + ` (customer_id, delivery_address, postal_code, status, timestamp)
-		VALUES (?, ?, ?, 'pending', NOW())
+		VALUES (?, ?, ?, 'IN_PROGRESS', NOW())
 	`
 	result, err := tx.Exec(query, customerID, deliveryAddress, postalCode)
 	if err != nil {
