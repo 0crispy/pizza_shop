@@ -967,6 +967,231 @@ func CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(Msg{Ok: true, OrderID: orderID})
 }
 
+func GetAvailableDeliveriesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Verify delivery person authentication
+	username := r.Header.Get("X-Username")
+	password := r.Header.Get("X-Password")
+	if username == "" || password == "" {
+		userCookie, _ := r.Cookie("X-Username")
+		passCookie, _ := r.Cookie("X-Password")
+		if userCookie != nil && passCookie != nil {
+			username = userCookie.Value
+			password = passCookie.Value
+		}
+	}
+
+	success, _ := database.TryLogin(username, password)
+	if !success {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	// Verify user is a delivery person
+	role, err := database.GetUserRole(username)
+	if err != nil || role != database.DeliveryRole.String() {
+		http.Error(w, "Not authorized as delivery person", http.StatusForbidden)
+		return
+	}
+
+	// Get available deliveries
+	deliveries, err := database.GetAvailableDeliveries()
+	if err != nil {
+		http.Error(w, "Failed to get available deliveries", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(deliveries)
+}
+
+func GetAssignedDeliveriesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Verify delivery person authentication
+	username := r.Header.Get("X-Username")
+	password := r.Header.Get("X-Password")
+	if username == "" || password == "" {
+		userCookie, _ := r.Cookie("X-Username")
+		passCookie, _ := r.Cookie("X-Password")
+		if userCookie != nil && passCookie != nil {
+			username = userCookie.Value
+			password = passCookie.Value
+		}
+	}
+
+	success, _ := database.TryLogin(username, password)
+	if !success {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	// Verify user is a delivery person
+	role, err := database.GetUserRole(username)
+	if err != nil || role != database.DeliveryRole.String() {
+		http.Error(w, "Not authorized as delivery person", http.StatusForbidden)
+		return
+	}
+
+	// Get user ID and delivery person ID
+	userID, err := database.GetUserIDFromUsername(username)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusInternalServerError)
+		return
+	}
+
+	deliveryPersonID, err := database.GetDeliveryPersonIDFromUserID(userID)
+	if err != nil {
+		http.Error(w, "Delivery person not found", http.StatusInternalServerError)
+		return
+	}
+
+	// Get assigned deliveries
+	deliveries, err := database.GetAssignedDeliveries(deliveryPersonID)
+	if err != nil {
+		http.Error(w, "Failed to get assigned deliveries", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(deliveries)
+}
+
+func AssignDeliveryHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Verify delivery person authentication
+	username := r.Header.Get("X-Username")
+	password := r.Header.Get("X-Password")
+	if username == "" || password == "" {
+		userCookie, _ := r.Cookie("X-Username")
+		passCookie, _ := r.Cookie("X-Password")
+		if userCookie != nil && passCookie != nil {
+			username = userCookie.Value
+			password = passCookie.Value
+		}
+	}
+
+	success, _ := database.TryLogin(username, password)
+	if !success {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	// Verify user is a delivery person
+	role, err := database.GetUserRole(username)
+	if err != nil || role != database.DeliveryRole.String() {
+		http.Error(w, "Not authorized as delivery person", http.StatusForbidden)
+		return
+	}
+
+	// Parse request body
+	var req struct {
+		OrderID int `json:"order_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Get user ID and delivery person ID
+	userID, err := database.GetUserIDFromUsername(username)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusInternalServerError)
+		return
+	}
+
+	deliveryPersonID, err := database.GetDeliveryPersonIDFromUserID(userID)
+	if err != nil {
+		http.Error(w, "Delivery person not found", http.StatusInternalServerError)
+		return
+	}
+
+	// Assign delivery
+	err = database.AssignDelivery(req.OrderID, deliveryPersonID)
+	if err == database.ErrOrderNotAvailable {
+		http.Error(w, "Order is not available", http.StatusBadRequest)
+		return
+	}
+	if err == database.ErrOrderAlreadyAssigned {
+		http.Error(w, "Order is already assigned", http.StatusConflict)
+		return
+	}
+	if err != nil {
+		http.Error(w, "Failed to assign delivery", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, `{"status":"ok"}`)
+}
+
+func UpdateDeliveryStatusHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Verify delivery person authentication
+	username := r.Header.Get("X-Username")
+	password := r.Header.Get("X-Password")
+	if username == "" || password == "" {
+		userCookie, _ := r.Cookie("X-Username")
+		passCookie, _ := r.Cookie("X-Password")
+		if userCookie != nil && passCookie != nil {
+			username = userCookie.Value
+			password = passCookie.Value
+		}
+	}
+
+	success, _ := database.TryLogin(username, password)
+	if !success {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	// Verify user is a delivery person
+	role, err := database.GetUserRole(username)
+	if err != nil || role != database.DeliveryRole.String() {
+		http.Error(w, "Not authorized as delivery person", http.StatusForbidden)
+		return
+	}
+
+	// Parse request body
+	var req struct {
+		OrderID int    `json:"order_id"`
+		Status  string `json:"status"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Update delivery status
+	err = database.UpdateDeliveryStatus(req.OrderID, req.Status)
+	if err == database.ErrInvalidStatus {
+		http.Error(w, "Invalid status. Must be 'DELIVERED' or 'FAILED'", http.StatusBadRequest)
+		return
+	}
+	if err != nil {
+		http.Error(w, "Failed to update delivery status", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, `{"status":"ok"}`)
+}
+
 func GetOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

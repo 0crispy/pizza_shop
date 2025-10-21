@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Panel</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .tab-button { margin: 5px; padding: 8px 16px; }
+        .tab-content { padding: 20px; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+        th, td { padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+<center>
+    <h1>Admin Panel</h1>
+    <hr>
+    <div class="tab-buttons">
+        <button class="tab-button" onclick="showTab('users-tab')">Users</button>
+        <button class="tab-button" onclick="showTab('orders-tab')">Orders</button>
+        <button class="tab-button" onclick="showTab('delivery-tab')">Delivery</button>
+        <button class="tab-button" onclick="showTab('pizzas-tab')">Pizzas</button>
+        <button class="tab-button" onclick="showTab('ingredients-tab')">Ingredients</button>
+        <button class="tab-button" onclick="showTab('extras-tab')">Desserts & Drinks</button>
+        <button class="tab-button" onclick="showTab('reports-tab')">Reports</button>
+    </div>
+    <hr>
+    
+    <div id="reports-tab" style="display:none;">
+        <h2>Reports</h2>
+        <h3>Undelivered Orders</h3>
+        <table border="1">
+            <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Status</th>
+                <th>Delivery Address</th>
+                <th>Postal Code</th>
+                <th>Order Time</th>
+            </tr>
+            {{.UndeliveredOrders}}
+        </table>
+    </div>
+
+    <div id="users-tab" class="tab-content" style="display:block;">
+        <h2>Users</h2>
+        <h3>Create User</h3>
+        <form method="POST" action="/admin/users/create" onsubmit="return validateForm(this);">
+            <table>
+                <tr>
+                    <td><b>Username:</b></td>
+                    <td><input type="text" name="username" required pattern="[a-zA-Z0-9_]{3,20}" title="Username must be 3-20 characters, alphanumeric and underscore only"></td>
+                </tr>
+                <tr>
+                    <td><b>Password:</b></td>
+                    <td><input type="password" name="password" required minlength="8" title="Password must be at least 8 characters"></td>
+                </tr>
+                <tr>
+                    <td><b>Role:</b></td>
+                    <td>
+                        <select name="role">
+                            <option value="customer">Customer</option>
+                            <option value="admin">Admin</option>
+                            <option value="delivery_person">Delivery Person</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2"><input type="submit" value="Create User"></td>
+                </tr>
+            </table>
+        </form>
+        <hr>
+        <h3>All Users</h3>
+        <table border="1">
+            <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Actions</th>
+            </tr>
+            {{.Users}}
+        </table>
+    </div>
+
+    <div id="delivery-tab" style="display:none;">
+        <h2>Delivery Persons</h2>
+        <table border="1">
+            <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Vehicle Type</th>
+                <th>Actions</th>
+            </tr>
+            {{.DeliveryPersons}}
+        </table>
+    </div>
+
+    <div id="pizzas-tab" style="display:none;">
+        <h2>Pizzas</h2>
+        <h3>Create Pizza</h3>
+        <form method="POST" action="/admin/pizza/create">
+            <table>
+                <tr>
+                    <td><b>Name:</b></td>
+                    <td><input type="text" name="name" required></td>
+                </tr>
+                <tr>
+                    <td><b>Ingredients:</b></td>
+                    <td><input type="text" name="ingredients" placeholder="cheese, tomato, basil" required></td>
+                </tr>
+                <tr>
+                    <td colspan="2"><input type="submit" value="Create Pizza"></td>
+                </tr>
+            </table>
+        </form>
+        <hr>
+        <h3>All Pizzas</h3>
+        <table border="1">
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Ingredients</th>
+                <th>Price</th>
+                <th>Actions</th>
+            </tr>
+            {{.Pizzas}}
+        </table>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            document.querySelectorAll('[id$="-tab"]').forEach(tab => tab.style.display = 'none');
+            document.getElementById(tabName).style.display = 'block';
+        }
+
+        function validateForm(form) {
+            let password = form.querySelector('input[name="password"]');
+            if (password && password.value.length < 8) {
+                alert('Password must be at least 8 characters long');
+                return false;
+            }
+            return true;
+        }
+    </script>
+</body>
+</html>

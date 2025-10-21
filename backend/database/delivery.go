@@ -1,7 +1,14 @@
 package database
 
 import (
+	"errors"
 	"log"
+)
+
+var (
+	ErrOrderNotAvailable    = errors.New("order is not available")
+	ErrOrderAlreadyAssigned = errors.New("order is already assigned")
+	ErrInvalidStatus        = errors.New("invalid status")
 )
 
 type DeliveryPerson struct {
@@ -114,4 +121,142 @@ func DeleteDeliveryPerson(userID int) error {
 	}
 
 	return tx.Commit()
+}
+
+func GetDeliveryPersonIDFromUserID(userID int) (int, error) {
+	var id int
+	err := DATABASE.QueryRow("SELECT id FROM delivery_person WHERE user_id = ?", userID).Scan(&id)
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
+}
+
+func GetAvailableDeliveries() ([]OrderDetails, error) {
+	query := `
+		SELECT o.id
+		FROM orders o
+		WHERE o.status = 'IN_PROGRESS'
+		AND NOT EXISTS (
+			SELECT 1 
+			FROM delivery_assignment da 
+			WHERE da.order_id = o.id
+		)
+		ORDER BY o.timestamp ASC
+	`
+	rows, err := DATABASE.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders []OrderDetails
+	for rows.Next() {
+		var orderID int
+		err := rows.Scan(&orderID)
+		if err != nil {
+			return nil, err
+		}
+
+		orderDetails, err := GetOrderDetails(orderID)
+		if err != nil {
+			return nil, err
+		}
+		orders = append(orders, *orderDetails)
+	}
+	return orders, nil
+}
+
+func GetAssignedDeliveries(deliveryPersonID int) ([]OrderDetails, error) {
+	query := `
+		SELECT o.id
+		FROM orders o
+		JOIN delivery_assignment da ON o.id = da.order_id
+		WHERE da.delivery_person_id = ?
+		AND o.status IN ('IN_PROGRESS', 'OUT_FOR_DELIVERY')
+		ORDER BY o.timestamp ASC
+	`
+	rows, err := DATABASE.Query(query, deliveryPersonID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders []OrderDetails
+	for rows.Next() {
+		var orderID int
+		err := rows.Scan(&orderID)
+		if err != nil {
+			return nil, err
+		}
+
+		orderDetails, err := GetOrderDetails(orderID)
+		if err != nil {
+			return nil, err
+		}
+		orders = append(orders, *orderDetails)
+	}
+	return orders, nil
+}
+
+func AssignDelivery(orderID, deliveryPersonID int) error {
+	tx, err := DATABASE.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Check if order is available
+	var status string
+	err = tx.QueryRow("SELECT status FROM orders WHERE id = ?", orderID).Scan(&status)
+	if err != nil {
+		return err
+	}
+	if status != "IN_PROGRESS" {
+		return ErrOrderNotAvailable
+	}
+
+	// Check if order is already assigned
+	var count int
+	err = tx.QueryRow("SELECT COUNT(*) FROM delivery_assignment WHERE order_id = ?", orderID).Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return ErrOrderAlreadyAssigned
+	}
+
+	// Assign delivery
+	_, err = tx.Exec(
+		"INSERT INTO delivery_assignment (order_id, delivery_person_id) VALUES (?, ?)",
+		orderID,
+		deliveryPersonID,
+	)
+	if err != nil {
+		return err
+	}
+
+	// Update order status
+	_, err = tx.Exec(
+		"UPDATE orders SET status = 'OUT_FOR_DELIVERY' WHERE id = ?",
+		orderID,
+	)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func UpdateDeliveryStatus(orderID int, status string) error {
+	if status != "DELIVERED" && status != "FAILED" {
+		return ErrInvalidStatus
+	}
+
+	_, err := DATABASE.Exec(
+		"UPDATE orders SET status = ? WHERE id = ?",
+		status,
+		orderID,
+	)
+	return err
 }

@@ -21,7 +21,43 @@
     <button onclick="showTab('pizzas')">Pizzas</button>
     <button onclick="showTab('ingredients')">Ingredients</button>
     <button onclick="showTab('extras')">Desserts & Drinks</button>
+    <button onclick="showTab('reports')">Reports</button>
   </p>
+
+  <!-- Reports Tab -->
+  <div id="reports-tab" style="display:none;">
+    <h2>Reports Dashboard</h2>
+    
+    <div>
+      <h3>Undelivered Orders</h3>
+      <button onclick="generateUndeliveredReport()">Show Undelivered Orders</button>
+      <div id="undelivered-orders"></div>
+    </div>
+
+    <hr>
+
+    <div>
+      <h3>Top Selling Pizzas (Last Month)</h3>
+      <button onclick="generateTopPizzasReport()">Show Top Pizzas</button>
+      <div id="top-pizzas"></div>
+    </div>
+
+    <hr>
+
+    <div>
+      <h3>Earnings Reports</h3>
+      <div style="margin: 10px 0;">
+        <label>Filter by:</label><br>
+        <select id="earnings-filter" onchange="updateEarningsFilter()">
+          <option value="gender">Gender</option>
+          <option value="age">Age Group</option>
+          <option value="postal">Postal Code</option>
+        </select>
+        <button onclick="generateEarningsReport()">Generate Report</button>
+      </div>
+      <div id="earnings-report"></div>
+    </div>
+  </div>
 
   <!-- Users Tab -->
   <div id="users-tab">
@@ -792,6 +828,133 @@
     }
 
     // Load initial data
+    // Report functions
+    function generateUndeliveredReport() {
+      const {u, p} = creds();
+      fetch('/admin/reports/undelivered', {
+        headers: {'X-Username': u, 'X-Password': p}
+      })
+        .then(r => r.json())
+        .then(data => {
+          const container = document.getElementById('undelivered-orders');
+          if (!data.ok) {
+            container.innerHTML = '<p>Error: ' + (data.error || 'Unknown error') + '</p>';
+            return;
+          }
+
+          if (!data.orders || data.orders.length === 0) {
+            container.innerHTML = '<p>No undelivered orders found.</p>';
+            return;
+          }
+
+          let html = '<table border="1" cellpadding="5"><tr><th>Order ID</th><th>Customer</th><th>Status</th><th>Time</th><th>Address</th><th>Postal Code</th></tr>';
+          data.orders.forEach(order => {
+            const date = new Date(order.timestamp).toLocaleString();
+            html += `<tr>
+              <td>${order.id}</td>
+              <td>${order.customer_name}</td>
+              <td>${order.status}</td>
+              <td>${date}</td>
+              <td>${order.delivery_address}</td>
+              <td>${order.postal_code}</td>
+            </tr>`;
+          });
+          html += '</table>';
+          container.innerHTML = html;
+        })
+        .catch(err => {
+          document.getElementById('undelivered-orders').innerHTML = '<p>Error generating report: ' + err.message + '</p>';
+        });
+    }
+
+    function generateTopPizzasReport() {
+      const {u, p} = creds();
+      fetch('/admin/reports/top-pizzas', {
+        headers: {'X-Username': u, 'X-Password': p}
+      })
+        .then(r => r.json())
+        .then(data => {
+          const container = document.getElementById('top-pizzas');
+          if (!data.ok) {
+            container.innerHTML = '<p>Error: ' + (data.error || 'Unknown error') + '</p>';
+            return;
+          }
+
+          if (!data.pizzas || data.pizzas.length === 0) {
+            container.innerHTML = '<p>No pizza sales data found for the last month.</p>';
+            return;
+          }
+
+          let html = '<table border="1" cellpadding="5"><tr><th>Rank</th><th>Pizza Name</th><th>Units Sold</th><th>Total Revenue</th></tr>';
+          data.pizzas.forEach((pizza, index) => {
+            html += `<tr>
+              <td>${index + 1}</td>
+              <td>${pizza.name}</td>
+              <td>${pizza.quantity}</td>
+              <td>$${pizza.revenue.toFixed(2)}</td>
+            </tr>`;
+          });
+          html += '</table>';
+          container.innerHTML = html;
+        })
+        .catch(err => {
+          document.getElementById('top-pizzas').innerHTML = '<p>Error generating report: ' + err.message + '</p>';
+        });
+    }
+
+    function generateEarningsReport() {
+      const {u, p} = creds();
+      const filterType = document.getElementById('earnings-filter').value;
+      fetch(`/admin/reports/earnings/${filterType}`, {
+        headers: {'X-Username': u, 'X-Password': p}
+      })
+        .then(r => r.json())
+        .then(data => {
+          const container = document.getElementById('earnings-report');
+          if (!data.ok) {
+            container.innerHTML = '<p>Error: ' + (data.error || 'Unknown error') + '</p>';
+            return;
+          }
+
+          if (!data.earnings || data.earnings.length === 0) {
+            container.innerHTML = '<p>No earnings data found.</p>';
+            return;
+          }
+
+          let html = '<table border="1" cellpadding="5"><tr>';
+          // Dynamic headers based on filter type
+          if (filterType === 'gender') {
+            html += '<th>Gender</th>';
+          } else if (filterType === 'age') {
+            html += '<th>Age Group</th>';
+          } else {
+            html += '<th>Postal Code</th>';
+          }
+          html += '<th>Orders</th><th>Total Revenue</th><th>Average Order Value</th></tr>';
+
+          data.earnings.forEach(item => {
+            const avgOrder = (item.revenue / item.orders).toFixed(2);
+            html += `<tr>
+              <td>${item.category}</td>
+              <td>${item.orders}</td>
+              <td>$${item.revenue.toFixed(2)}</td>
+              <td>$${avgOrder}</td>
+            </tr>`;
+          });
+          html += '</table>';
+          container.innerHTML = html;
+        })
+        .catch(err => {
+          document.getElementById('earnings-report').innerHTML = '<p>Error generating report: ' + err.message + '</p>';
+        });
+    }
+
+    function updateEarningsFilter() {
+      // Clear previous results when filter changes
+      document.getElementById('earnings-report').innerHTML = '';
+    }
+
+    // Initial load
     loadUsers();
   </script>
   </center>

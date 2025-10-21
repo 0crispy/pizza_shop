@@ -48,6 +48,11 @@ func main() {
 	http.HandleFunc("/admin/users/list", handlers.AdminGetAllUsersHandler)
 	http.HandleFunc("/admin/users/delete", handlers.AdminDeleteUserHandler)
 	http.HandleFunc("/admin/users/create", handlers.AdminCreateUserHandler)
+
+	// Admin Reports
+	http.HandleFunc("/admin/reports/undelivered", handlers.GetUndeliveredOrdersReportHandler)
+	http.HandleFunc("/admin/reports/top-pizzas", handlers.GetTopPizzasReportHandler)
+	http.HandleFunc("/admin/reports/earnings/", handlers.GetEarningsReportHandler)
 	http.HandleFunc("/admin/orders/list", handlers.AdminGetAllOrdersHandler)
 	http.HandleFunc("/admin/orders/delete", handlers.AdminDeleteOrderHandler)
 	http.HandleFunc("/admin/orders/update-status", handlers.AdminUpdateOrderStatusHandler)
@@ -55,6 +60,12 @@ func main() {
 	http.HandleFunc("/admin/delivery/delete", handlers.AdminDeleteDeliveryPersonHandler)
 
 	http.HandleFunc("/delivery_person", handlers.DeliveryPerson)
+
+	// Delivery person endpoints
+	http.HandleFunc("/delivery/available", handlers.GetAvailableDeliveriesHandler)
+	http.HandleFunc("/delivery/assigned", handlers.GetAssignedDeliveriesHandler)
+	http.HandleFunc("/delivery/assign", handlers.AssignDeliveryHandler)
+	http.HandleFunc("/delivery/update-status", handlers.UpdateDeliveryStatusHandler)
 
 	fmt.Printf("Server running on http://localhost:%s\n", PORT)
 	http.ListenAndServe(fmt.Sprintf(":%s", PORT), nil)

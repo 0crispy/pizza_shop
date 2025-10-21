@@ -1,17 +1,182 @@
 <h1>Delivery person panel</h1>
-<p id="connected_as"></p>
+<center>
+    <p id="connected_as"></p>
 
-<h2>Choose a delivery:</h2>
+    <div>
+        <h2>Available Deliveries</h2>
+        <button onclick="loadAvailableDeliveries()">Refresh</button>
+        <div id="available-deliveries">
+            <p><i>Loading available deliveries...</i></p>
+        </div>
+    </div>
 
-Here are listed all of the deliveries.
+    <hr>
 
-<h2>Here are your deliveries:</h2>
-
-Here are listed all of your deliveries, both 
-pending and completed.
-
+    <div>
+        <h2>Your Assigned Deliveries</h2>
+        <button onclick="loadAssignedDeliveries()">Refresh</button>
+        <div id="assigned-deliveries">
+            <p><i>Loading your deliveries...</i></p>
+        </div>
+    </div>
+</center>
 
 <script>
     const u = sessionStorage.getItem('username');
     document.getElementById('connected_as').textContent = 'Connected as: ' + u + '.';
+
+    // Function to load available deliveries (orders that are IN_PROGRESS and not assigned)
+    function loadAvailableDeliveries() {
+        fetch('/delivery/available')
+            .then(r => r.json())
+            .then(data => {
+                const container = document.getElementById('available-deliveries');
+                if (!data.ok) {
+                    container.innerHTML = '<p>Error loading available deliveries: ' + (data.error || 'Unknown error') + '</p>';
+                    return;
+                }
+
+                if (!data.orders || data.orders.length === 0) {
+                    container.innerHTML = '<p>No deliveries available.</p>';
+                    return;
+                }
+
+                let html = '<table border="1" cellpadding="5"><tr><th>Order ID</th><th>Customer</th><th>Address</th><th>Postal Code</th><th>Order Time</th><th>Action</th></tr>';
+                data.orders.forEach(order => {
+                    const date = new Date(order.timestamp).toLocaleString();
+                    html += `<tr>
+                        <td>${order.id}</td>
+                        <td>${order.customer_name}</td>
+                        <td>${order.delivery_address}</td>
+                        <td>${order.postal_code}</td>
+                        <td>${date}</td>
+                        <td><button onclick="assignDelivery(${order.id})">Take Delivery</button></td>
+                    </tr>`;
+                });
+                html += '</table>';
+                container.innerHTML = html;
+            })
+            .catch(err => {
+                document.getElementById('available-deliveries').innerHTML = '<p>Error loading available deliveries.</p>';
+                console.error(err);
+            });
+    }
+
+    // Function to load assigned deliveries for the current delivery person
+    function loadAssignedDeliveries() {
+        fetch(`/delivery/assigned?username=${encodeURIComponent(u)}`)
+            .then(r => r.json())
+            .then(data => {
+                const container = document.getElementById('assigned-deliveries');
+                if (!data.ok) {
+                    container.innerHTML = '<p>Error loading your deliveries: ' + (data.error || 'Unknown error') + '</p>';
+                    return;
+                }
+
+                if (!data.orders || data.orders.length === 0) {
+                    container.innerHTML = '<p>You have no assigned deliveries.</p>';
+                    return;
+                }
+
+                let html = '<table border="1" cellpadding="5"><tr><th>Order ID</th><th>Customer</th><th>Address</th><th>Postal Code</th><th>Order Time</th><th>Status</th><th>Action</th></tr>';
+                data.orders.forEach(order => {
+                    const date = new Date(order.timestamp).toLocaleString();
+                    html += `<tr>
+                        <td>${order.id}</td>
+                        <td>${order.customer_name}</td>
+                        <td>${order.delivery_address}</td>
+                        <td>${order.postal_code}</td>
+                        <td>${date}</td>
+                        <td>${order.status}</td>
+                        <td>
+                            ${order.status === 'IN_PROGRESS' ? 
+                            `<button onclick="markDelivered(${order.id})">Mark Delivered</button>
+                            <button onclick="markFailed(${order.id})">Mark Failed</button>` : ''}
+                            <button onclick="viewOrderDetails(${order.id})">View Details</button>
+                        </td>
+                    </tr>`;
+                });
+                html += '</table>';
+                container.innerHTML = html;
+            })
+            .catch(err => {
+                document.getElementById('assigned-deliveries').innerHTML = '<p>Error loading your deliveries.</p>';
+                console.error(err);
+            });
+    }
+
+    // Function to assign a delivery to the current delivery person
+    function assignDelivery(orderId) {
+        if (!confirm(`Do you want to take delivery for order #${orderId}?`)) return;
+
+        fetch('/delivery/assign', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                order_id: orderId,
+                username: u
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                alert('Delivery assigned successfully!');
+                loadAvailableDeliveries();
+                loadAssignedDeliveries();
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(err => {
+            alert('Error assigning delivery: ' + err.message);
+        });
+    }
+
+    // Function to mark an order as delivered
+    function markDelivered(orderId) {
+        updateDeliveryStatus(orderId, 'DELIVERED');
+    }
+
+    // Function to mark an order as failed
+    function markFailed(orderId) {
+        updateDeliveryStatus(orderId, 'FAILED');
+    }
+
+    // Function to update delivery status
+    function updateDeliveryStatus(orderId, status) {
+        fetch('/delivery/update-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                order_id: orderId,
+                username: u,
+                status: status
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                alert('Status updated successfully!');
+                loadAssignedDeliveries();
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(err => {
+            alert('Error updating status: ' + err.message);
+        });
+    }
+
+    // Function to view order details
+    function viewOrderDetails(orderId) {
+        window.open(`/order-confirmation?order_id=${orderId}`, '_blank');
+    }
+
+    // Load deliveries when the page loads
+    loadAvailableDeliveries();
+    loadAssignedDeliveries();
 </script>
