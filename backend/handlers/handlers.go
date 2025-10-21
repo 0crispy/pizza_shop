@@ -1035,3 +1035,132 @@ func ListExtraItemsHandler(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(items)
 }
+
+func CreateExtraItemHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	username := r.Header.Get("X-Username")
+	password := r.Header.Get("X-Password")
+
+	success, role := database.TryLogin(username, password)
+	if !success || role != "ADMIN" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req struct {
+		Name     string  `json:"name"`
+		Category string  `json:"category"`
+		Price    float64 `json:"price"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Category != "dessert" && req.Category != "drink" {
+		http.Error(w, "Category must be 'dessert' or 'drink'", http.StatusBadRequest)
+		return
+	}
+
+	query := `INSERT INTO extra_item (name, category, price) VALUES (?, ?, ?)`
+	result, err := database.DATABASE.Exec(query, req.Name, req.Category, req.Price)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	id, _ := result.LastInsertId()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"ok":       true,
+		"id":       id,
+		"name":     req.Name,
+		"category": req.Category,
+		"price":    req.Price,
+	})
+}
+
+func UpdateExtraItemHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	username := r.Header.Get("X-Username")
+	password := r.Header.Get("X-Password")
+
+	success, role := database.TryLogin(username, password)
+	if !success || role != "ADMIN" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req struct {
+		ID       int     `json:"id"`
+		Name     string  `json:"name"`
+		Category string  `json:"category"`
+		Price    float64 `json:"price"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Category != "dessert" && req.Category != "drink" {
+		http.Error(w, "Category must be 'dessert' or 'drink'", http.StatusBadRequest)
+		return
+	}
+
+	query := `UPDATE extra_item SET name = ?, category = ?, price = ? WHERE id = ?`
+	_, err := database.DATABASE.Exec(query, req.Name, req.Category, req.Price, req.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"ok": true,
+	})
+}
+
+func DeleteExtraItemHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	username := r.Header.Get("X-Username")
+	password := r.Header.Get("X-Password")
+
+	success, role := database.TryLogin(username, password)
+	if !success || role != "ADMIN" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "ID required", http.StatusBadRequest)
+		return
+	}
+
+	query := `DELETE FROM extra_item WHERE id = ?`
+	_, err := database.DATABASE.Exec(query, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"ok": true,
+	})
+}

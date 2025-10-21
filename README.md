@@ -44,10 +44,10 @@ go build backend/main.go
     - [x] Delivery person login
     - [ ] Delivery person view assigned order
     - [ ] Delivery person mark order as delivered/failed/etc
-- [ ] Desserts & drinks <-A
-    - [ ] Extra item CRUD
-    - [ ] Add to menu
-    - [ ] Ordering desserts and drinks
+- [x] Desserts & drinks <-A
+    - [x] Extra item CRUD
+    - [x] Add to menu
+    - [x] Ordering desserts and drinks
 - [ ] Discount codes <-K
     - [ ] Discount code CRUD
     - [ ] Admin create discount codes

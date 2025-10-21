@@ -41,7 +41,9 @@ func main() {
 	http.HandleFunc("/order/details", handlers.GetOrderDetailsHandler)
 	http.HandleFunc("/extra-items/list", handlers.ListExtraItemsHandler)
 
-	// Admin management routes
+	http.HandleFunc("/admin/extra-items/create", handlers.CreateExtraItemHandler)
+	http.HandleFunc("/admin/extra-items/update", handlers.UpdateExtraItemHandler)
+	http.HandleFunc("/admin/extra-items/delete", handlers.DeleteExtraItemHandler)
 	http.HandleFunc("/admin/users/list", handlers.AdminGetAllUsersHandler)
 	http.HandleFunc("/admin/users/delete", handlers.AdminDeleteUserHandler)
 	http.HandleFunc("/admin/users/create", handlers.AdminCreateUserHandler)
