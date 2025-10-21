@@ -40,8 +40,6 @@ type OrderDetails struct {
 	TotalPrice float64          `json:"total_price"`
 }
 
-// CreateOrderWithTransaction creates an order and adds all items in a single transaction
-// If any step fails, the entire transaction is rolled back
 func CreateOrderWithTransaction(customerID int, deliveryAddress, postalCode string, pizzaItems []struct {
 	PizzaID  int
 	Quantity int
@@ -49,22 +47,19 @@ func CreateOrderWithTransaction(customerID int, deliveryAddress, postalCode stri
 	ExtraItemID int
 	Quantity    int
 }) (int, error) {
-	// Begin transaction
 	tx, err := DATABASE.Begin()
 	if err != nil {
 		return 0, err
 	}
 
-	// Defer rollback in case of error
 	defer func() {
 		if err != nil {
 			tx.Rollback()
 		}
 	}()
 
-	// Create the order
 	query := `
-		INSERT INTO ` + "`orders`" + ` (customer_id, delivery_address, postal_code, status, timestamp)
+		INSERT INTO orders (customer_id, delivery_address, postal_code, status, timestamp)
 		VALUES (?, ?, ?, 'IN_PROGRESS', NOW())
 	`
 	result, err := tx.Exec(query, customerID, deliveryAddress, postalCode)
@@ -77,7 +72,6 @@ func CreateOrderWithTransaction(customerID int, deliveryAddress, postalCode stri
 		return 0, err
 	}
 
-	// Add pizzas to the order
 	pizzaQuery := `INSERT INTO order_pizza (order_id, pizza_id, quantity) VALUES (?, ?, ?)`
 	for _, item := range pizzaItems {
 		_, err = tx.Exec(pizzaQuery, orderID, item.PizzaID, item.Quantity)
@@ -86,7 +80,6 @@ func CreateOrderWithTransaction(customerID int, deliveryAddress, postalCode stri
 		}
 	}
 
-	// Add extra items to the order (if any)
 	if len(extraItems) > 0 {
 		extraQuery := `INSERT INTO order_extra_item (order_id, extra_item_id, quantity) VALUES (?, ?, ?)`
 		for _, item := range extraItems {
@@ -97,7 +90,6 @@ func CreateOrderWithTransaction(customerID int, deliveryAddress, postalCode stri
 		}
 	}
 
-	// Commit the transaction
 	err = tx.Commit()
 	if err != nil {
 		return 0, err
@@ -139,7 +131,7 @@ func AddExtraItemToOrder(orderID, extraItemID, quantity int) error {
 func GetOrdersByCustomer(customerID int) ([]Order, error) {
 	query := `
 		SELECT id, customer_id, timestamp, status, postal_code, delivery_address
-		FROM ` + "`orders`" + `
+		FROM orders
 		WHERE customer_id = ?
 		ORDER BY timestamp DESC
 	`
@@ -166,7 +158,7 @@ func GetOrderByID(orderID int) (*Order, error) {
 	var order Order
 	query := `
 		SELECT id, customer_id, timestamp, status, postal_code, delivery_address
-		FROM ` + "`orders`" + `
+		FROM orders
 		WHERE id = ?
 	`
 	err := DATABASE.QueryRow(query, orderID).Scan(
@@ -189,7 +181,7 @@ func GetOrderDetails(orderID int) (*OrderDetails, error) {
 
 	query := `
 		SELECT o.id, o.customer_id, c.name, o.timestamp, o.status, o.postal_code, o.delivery_address
-		FROM ` + "`orders`" + ` o
+		FROM orders o
 		LEFT JOIN customer c ON o.customer_id = c.id
 		WHERE o.id = ?
 	`
@@ -266,7 +258,6 @@ func GetOrderDetails(orderID int) (*OrderDetails, error) {
 func calculateOrderTotal(details *OrderDetails) (float64, error) {
 	total := 0.0
 
-	// Add pizza prices
 	for _, op := range details.Pizzas {
 		pizza, err := GetPizzaByID(op.PizzaID)
 		if err != nil {
@@ -280,7 +271,6 @@ func calculateOrderTotal(details *OrderDetails) (float64, error) {
 		total += priceFloat * float64(op.Quantity)
 	}
 
-	// Add extra item prices
 	for _, oe := range details.ExtraItems {
 		total += oe.Price * float64(oe.Quantity)
 	}
@@ -289,18 +279,17 @@ func calculateOrderTotal(details *OrderDetails) (float64, error) {
 }
 
 func UpdateOrderStatus(orderID int, status string) error {
-	query := `UPDATE ` + "`orders`" + ` SET status = ? WHERE id = ?`
+	query := `UPDATE orders SET status = ? WHERE id = ?`
 	_, err := DATABASE.Exec(query, status, orderID)
 	return err
 }
 
 func DeleteOrder(orderID int) error {
-	query := `DELETE FROM ` + "`orders`" + ` WHERE id = ?`
+	query := `DELETE FROM orders WHERE id = ?`
 	_, err := DATABASE.Exec(query, orderID)
 	return err
 }
 
-// Admin function to get all orders
 func GetAllOrders() ([]Order, error) {
 	query := `
 		SELECT o.id, o.customer_id, c.name as customer_name, o.timestamp, o.status, o.postal_code, o.delivery_address
