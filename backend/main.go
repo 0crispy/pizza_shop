@@ -48,16 +48,20 @@ func main() {
 	http.HandleFunc("/admin/users/list", handlers.AdminGetAllUsersHandler)
 	http.HandleFunc("/admin/users/delete", handlers.AdminDeleteUserHandler)
 	http.HandleFunc("/admin/users/create", handlers.AdminCreateUserHandler)
-
-	// Admin Reports
-	http.HandleFunc("/admin/reports/undelivered", handlers.GetUndeliveredOrdersReportHandler)
-	http.HandleFunc("/admin/reports/top-pizzas", handlers.GetTopPizzasReportHandler)
-	http.HandleFunc("/admin/reports/earnings/", handlers.GetEarningsReportHandler)
 	http.HandleFunc("/admin/orders/list", handlers.AdminGetAllOrdersHandler)
 	http.HandleFunc("/admin/orders/delete", handlers.AdminDeleteOrderHandler)
 	http.HandleFunc("/admin/orders/update-status", handlers.AdminUpdateOrderStatusHandler)
 	http.HandleFunc("/admin/delivery/list", handlers.AdminGetAllDeliveryPersonsHandler)
 	http.HandleFunc("/admin/delivery/delete", handlers.AdminDeleteDeliveryPersonHandler)
+
+	http.HandleFunc("/admin/discount/create", handlers.CreateDiscountCodeHandler)
+	http.HandleFunc("/admin/discount/update", handlers.UpdateDiscountCodeHandler)
+	http.HandleFunc("/admin/discount/delete", handlers.DeleteDiscountCodeHandler)
+	http.HandleFunc("/admin/orders/assign-delivery", handlers.AssignDeliveryPersonHandler)
+
+	http.HandleFunc("/api/validate-discount", handlers.ValidateDiscountCodeHandler)
+	http.HandleFunc("/api/extra-items", handlers.ListExtraItemsHandler)
+	http.HandleFunc("/api/check-birthday", handlers.CheckBirthdayDiscountHandler)
 
 	http.HandleFunc("/delivery_person", handlers.DeliveryPerson)
 

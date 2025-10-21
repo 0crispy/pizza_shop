@@ -31,17 +31,23 @@ var streets = []string{
 
 var genders = []string{"Male", "Female", "Non-binary", "Prefer not to say"}
 
-var statuses = []string{"IN_PROGRESS", "DELIVERED", "FAILED"}
+var statuses = []string{"IN_PROGRESS", "OUT_FOR_DELIVERY", "DELIVERED", "FAILED"}
 
 func randomString(options []string) string {
 	return options[rand.Intn(len(options))]
 }
 
 func randomDate(minYear, maxYear int) string {
-	year := minYear + rand.Intn(maxYear-minYear)
+	year := minYear + rand.Intn(maxYear-minYear+1)
 	month := 1 + rand.Intn(12)
 	day := 1 + rand.Intn(28)
 	return fmt.Sprintf("%04d-%02d-%02d", year, month, day)
+}
+
+func randomDateInRange(startDate, endDate time.Time) time.Time {
+	delta := endDate.Unix() - startDate.Unix()
+	sec := rand.Int63n(delta)
+	return startDate.Add(time.Duration(sec) * time.Second)
 }
 
 func randomAddress() string {
@@ -60,16 +66,21 @@ func generateCustomers(count int) []int {
 	for i := 0; i < count; i++ {
 		firstName := randomString(firstNames)
 		lastName := randomString(lastNames)
-		username := fmt.Sprintf("%s%s%d", firstName, lastName, rand.Intn(1000))
+		username := fmt.Sprintf("%s%s%d", firstName, lastName, rand.Intn(10000))
 		name := fmt.Sprintf("%s %s", firstName, lastName)
+
+		// Generate birth dates for different age groups
+		// Ages: 18-75 years old (born between 1950-2007)
+		birthYear := 1950 + rand.Intn(58)
+		noBirthDate := rand.Float32() < 0.05 // 5% chance of no birth date
 
 		customer := database.Customer{
 			Username:    username,
 			Password:    "password123",
 			Name:        name,
 			Gender:      randomString(genders),
-			BirthDate:   randomDate(1970, 2005),
-			NoBirthDate: rand.Float32() < 0.1,
+			BirthDate:   randomDate(birthYear, birthYear),
+			NoBirthDate: noBirthDate,
 			Address:     randomAddress(),
 			PostCode:    randomPostalCode(),
 		}
@@ -93,7 +104,9 @@ func generateCustomers(count int) []int {
 		}
 
 		customerIDs = append(customerIDs, customerID)
-		fmt.Printf("  ✓ Created customer: %s (ID: %d)\n", username, customerID)
+		if (i+1)%10 == 0 {
+			fmt.Printf("  ✓ Created %d customers...\n", i+1)
+		}
 	}
 
 	return customerIDs
@@ -180,6 +193,10 @@ func generateOrders(customerIDs []int, count int) {
 		log.Fatalf("Failed to get extra items: %v\n", err)
 	}
 
+	// Order dates: last 2 years
+	now := time.Now()
+	twoYearsAgo := now.AddDate(-2, 0, 0)
+
 	for i := 0; i < count; i++ {
 		if len(customerIDs) == 0 {
 			log.Println("No customers available to create orders")
@@ -196,6 +213,18 @@ func generateOrders(customerIDs []int, count int) {
 
 		if err != nil {
 			log.Printf("Failed to get customer details for ID %d: %v\n", customerID, err)
+			continue
+		}
+
+		// Get userID from customer
+		var userID int
+		err = database.DATABASE.QueryRow(
+			"SELECT user_id FROM customer WHERE id = ?",
+			customerID,
+		).Scan(&userID)
+
+		if err != nil {
+			log.Printf("Failed to get user_id for customer ID %d: %v\n", customerID, err)
 			continue
 		}
 
@@ -233,10 +262,12 @@ func generateOrders(customerIDs []int, count int) {
 
 		orderID, err := database.CreateOrderWithTransaction(
 			customerID,
+			userID,
 			customer.Address,
 			customer.PostCode,
 			pizzaItems,
 			extraItemsToOrder,
+			nil,
 		)
 
 		if err != nil {
@@ -244,13 +275,26 @@ func generateOrders(customerIDs []int, count int) {
 			continue
 		}
 
-		status := randomString(statuses)
+		// Random status weighted towards DELIVERED
+		statusRand := rand.Float32()
+		var status string
+		if statusRand < 0.80 { // 80% delivered
+			status = "DELIVERED"
+		} else if statusRand < 0.90 { // 10% in progress
+			status = "IN_PROGRESS"
+		} else if statusRand < 0.95 { // 5% out for delivery
+			status = "OUT_FOR_DELIVERY"
+		} else { // 5% failed
+			status = "FAILED"
+		}
+
 		err = database.UpdateOrderStatus(orderID, status)
 		if err != nil {
 			log.Printf("Failed to update order status: %v\n", err)
 		}
 
-		orderDate := time.Now().Add(-time.Duration(rand.Intn(90*24)) * time.Hour)
+		// Random order date in last 2 years
+		orderDate := randomDateInRange(twoYearsAgo, now)
 		_, err = database.DATABASE.Exec(
 			"UPDATE orders SET timestamp = ? WHERE id = ?",
 			orderDate,
@@ -260,32 +304,42 @@ func generateOrders(customerIDs []int, count int) {
 			log.Printf("Failed to update order timestamp: %v\n", err)
 		}
 
-		fmt.Printf("  ✓ Created order #%d for customer %s (%d pizzas, %d extras, status: %s)\n",
-			orderID, customer.Name, len(pizzaItems), len(extraItemsToOrder), status)
+		if (i+1)%50 == 0 {
+			fmt.Printf("  ✓ Created %d orders...\n", i+1)
+		}
 	}
+	fmt.Printf("  ✓ Created %d orders total\n", count)
 }
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	fmt.Println("=== Pizza Shop Test Data Generator ===\n")
+	fmt.Println("=== Pizza Shop Test Data Generator ===")
+	fmt.Println()
 
 	database.Init()
 	defer database.Close()
 
-	fmt.Println("Connected to database!\n")
+	fmt.Println("Connected to database!")
+	fmt.Println()
 
-	customerIDs := generateCustomers(20)
+	customerIDs := generateCustomers(100)
 	fmt.Printf("\n✓ Created %d customers\n\n", len(customerIDs))
 
-	generateDeliveryPeople(5)
-	fmt.Println("\n✓ Created 5 delivery people\n")
+	generateDeliveryPeople(10)
+	fmt.Println("\n✓ Created 10 delivery people\n")
 
-	generateOrders(customerIDs, 30)
-	fmt.Println("\n✓ Created 30 orders\n")
+	generateOrders(customerIDs, 500)
+	fmt.Println("\n✓ Created 500 orders\n")
 
 	fmt.Println("=== Test Data Generation Complete! ===")
-	fmt.Println("\nSample credentials:")
+	fmt.Println()
+	fmt.Println("Summary:")
+	fmt.Printf("  • 100 customers with ages 18-75\n")
+	fmt.Printf("  • 10 delivery people\n")
+	fmt.Printf("  • 500 orders spanning last 2 years\n")
+	fmt.Println()
+	fmt.Println("Sample credentials:")
 	fmt.Println("  Customers: Check usernames like AlexSmith*, JamieJones*, etc.")
 	fmt.Println("  Delivery: Check usernames like delivery_AlexSmith*, etc.")
 	fmt.Println("  Password for all: password123")

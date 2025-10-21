@@ -31,6 +31,34 @@
       }
       updateCartCount();
       loadExtraItems();
+      checkBirthdayPromotion(); // Check for birthday discount
+    }
+
+    async function checkBirthdayPromotion() {
+      try {
+        const response = await fetch('/api/check-birthday');
+        const data = await response.json();
+        
+        if (data.ok && data.is_birthday && !data.already_used) {
+          // Show birthday message
+          const discountInfo = document.getElementById('discount-info');
+          discountInfo.innerHTML = `<p style="color: #4CAF50; font-weight: bold;">${data.message}</p>`;
+          discountInfo.style.display = 'block';
+          
+          // Auto-apply the birthday discount
+          sessionStorage.setItem('discountCode', data.code);
+          sessionStorage.setItem('discountPercent', 0); // Birthday is special, not percentage-based
+          document.getElementById('discount-code').value = data.code;
+          loadCart(); // Reload to show discount
+        } else if (data.ok && data.is_birthday && data.already_used) {
+          // Already used birthday discount
+          const discountInfo = document.getElementById('discount-info');
+          discountInfo.innerHTML = `<p style="color: #ff9800;">${data.message}</p>`;
+          discountInfo.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Failed to check birthday:', error);
+      }
     }
 
     async function loadExtraItems() {
@@ -86,14 +114,16 @@
       
       if (cart.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #999;">Your cart is empty</td></tr>';
+        document.getElementById('subtotal').textContent = '$0.00';
+        document.getElementById('discount-amount').textContent = '$0.00';
         document.getElementById('total').textContent = '$0.00';
         return;
       }
       
-      let total = 0;
+      let subtotal = 0;
       cart.forEach((item, index) => {
         const itemTotal = item.price * item.quantity;
-        total += itemTotal;
+        subtotal += itemTotal;
         
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -110,7 +140,98 @@
         tbody.appendChild(tr);
       });
       
+      const discountCode = sessionStorage.getItem('discountCode');
+      const discountPercent = parseInt(sessionStorage.getItem('discountPercent') || '0');
+      
+      let discountAmount = 0;
+      let discountMessage = '';
+      
+      if (discountCode === 'BIRTHDAY') {
+        // Birthday discount: calculate cheapest pizza + cheapest drink
+        const pizzas = cart.filter(item => (item.type || 'pizza') === 'pizza');
+        const drinks = cart.filter(item => item.type === 'extra' && item.name.toLowerCase().includes('water') || 
+                                           item.name.toLowerCase().includes('cola') || 
+                                           item.name.toLowerCase().includes('sprite') ||
+                                           item.name.toLowerCase().includes('fanta') ||
+                                           item.name.toLowerCase().includes('juice') ||
+                                           item.name.toLowerCase().includes('tea') ||
+                                           item.name.toLowerCase().includes('lemonade') ||
+                                           item.name.toLowerCase().includes('coffee'));
+        
+        if (pizzas.length > 0) {
+          const cheapestPizza = pizzas.reduce((min, p) => p.price < min.price ? p : min);
+          discountAmount += cheapestPizza.price;
+        }
+        
+        if (drinks.length > 0) {
+          const cheapestDrink = drinks.reduce((min, d) => d.price < min.price ? d : min);
+          discountAmount += cheapestDrink.price;
+        } else {
+          // Add cheapest drink price (Water = $1.50) to show in discount
+          discountAmount += 1.50;
+        }
+        
+        discountMessage = '🎉 Birthday Special: Free cheapest pizza + free drink! 🎉';
+      } else if (discountPercent > 0) {
+        discountAmount = (subtotal * discountPercent) / 100;
+        discountMessage = `Discount code "${discountCode}" applied (${discountPercent}% off)`;
+      }
+      
+      const total = subtotal - discountAmount;
+
+      document.getElementById('subtotal').textContent = '$' + subtotal.toFixed(2);
+      document.getElementById('discount-amount').textContent = discountAmount > 0 ? '-$' + discountAmount.toFixed(2) : '$0.00';
       document.getElementById('total').textContent = '$' + total.toFixed(2);
+      
+      if (discountCode) {
+        document.getElementById('discount-info').innerHTML = discountMessage;
+        document.getElementById('discount-code').value = discountCode;
+      }
+    }
+
+    async function applyDiscount() {
+      const code = document.getElementById('discount-code').value.trim().toUpperCase();
+      console.log('Applying discount code:', code);
+      
+      if (!code) {
+        alert('Please enter a discount code');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/validate-discount?code=' + encodeURIComponent(code));
+        const data = await response.json();
+        console.log('Discount validation response:', data);
+        
+        if (data.ok && data.valid) {
+          sessionStorage.setItem('discountCode', code);
+          sessionStorage.setItem('discountPercent', data.discount_percentage || '0');
+          
+          if (code === 'BIRTHDAY') {
+            document.getElementById('discount-info').innerHTML = '<span style="color: #4CAF50;">🎉 Birthday discount applied! Free cheapest pizza + 1 free drink! 🎉</span>';
+          } else if (data.discount_percentage > 0) {
+            document.getElementById('discount-info').innerHTML = `<span style="color: #4CAF50;">Discount code "${code}" applied (${data.discount_percentage}% off)</span>`;
+          } else {
+            document.getElementById('discount-info').innerHTML = `<span style="color: #4CAF50;">${data.message}</span>`;
+          }
+          
+          loadCart();
+          alert(data.message || `Discount code applied successfully!`);
+        } else {
+          alert(data.message || 'Invalid or inactive discount code');
+        }
+      } catch (err) {
+        console.error('Error applying discount:', err);
+        alert('Error validating discount code: ' + err.message);
+      }
+    }
+
+    function removeDiscount() {
+      sessionStorage.removeItem('discountCode');
+      sessionStorage.removeItem('discountPercent');
+      document.getElementById('discount-code').value = '';
+      document.getElementById('discount-info').textContent = '';
+      loadCart();
     }
 
     function updateQuantity(id, newQuantity, type = 'pizza') {
@@ -165,6 +286,7 @@
       
       const username = sessionStorage.getItem('username');
       const password = sessionStorage.getItem('password');
+      const discountCode = sessionStorage.getItem('discountCode');
       
       const cartItems = cart.map(item => ({
         id: item.id,
@@ -181,7 +303,8 @@
             password: password,
             delivery_address: deliveryAddress,
             postal_code: postalCode,
-            cart_items: cartItems
+            cart_items: cartItems,
+            discount_code: discountCode || null
           })
         });
         
@@ -189,6 +312,8 @@
         
         if (data.ok) {
           localStorage.removeItem('pizzaCart');
+          sessionStorage.removeItem('discountCode');
+          sessionStorage.removeItem('discountPercent');
           window.location.href = '/order-confirmation?order_id=' + data.order_id;
         } else {
           alert('Error: ' + (data.error || 'Failed to place order'));
@@ -247,7 +372,18 @@
     </tbody>
   </table>
   <br>
+  <h3>Subtotal: <span id="subtotal">$0.00</span></h3>
+  <h3>Discount: <span id="discount-amount">$0.00</span></h3>
   <h3>Total: <span id="total">$0.00</span></h3>
+  <hr width="70%">
+  
+  <h2>Discount Code</h2>
+  <p>
+    <input type="text" id="discount-code" placeholder="Enter discount code" size="20">
+    <button onclick="applyDiscount()">Apply</button>
+    <button onclick="removeDiscount()">Remove</button>
+  </p>
+  <p id="discount-info" style="color: green; font-weight: bold;"></p>
   <hr width="70%">
   
   <h2>Delivery Information</h2>

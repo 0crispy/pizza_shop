@@ -9,22 +9,34 @@ func InitDatabaseDev() {
 	queries := []string{
 		`SET FOREIGN_KEY_CHECKS = 0;`,
 
+		// Drop all tables first (in reverse dependency order)
+		`DROP TABLE IF EXISTS discount_usage;`,
+		`DROP TABLE IF EXISTS order_extra_item;`,
+		`DROP TABLE IF EXISTS order_pizza;`,
+		`DROP TABLE IF EXISTS orders;`,
+		`DROP TABLE IF EXISTS delivery_person;`,
+		`DROP TABLE IF EXISTS discount_code;`,
+		`DROP TABLE IF EXISTS extra_item;`,
+		`DROP TABLE IF EXISTS customer;`,
+		`DROP TABLE IF EXISTS user;`,
+		`DROP TABLE IF EXISTS pizza_ingredient;`,
+		`DROP TABLE IF EXISTS ingredient;`,
 		`DROP TABLE IF EXISTS pizza;`,
+
+		// Create tables in dependency order
 		`CREATE TABLE pizza (
 			id INT AUTO_INCREMENT PRIMARY KEY,
 			name VARCHAR(255) NOT NULL UNIQUE
 		);`,
 
-		`DROP TABLE IF EXISTS ingredient;`,
 		`CREATE TABLE ingredient(
 			id INT AUTO_INCREMENT PRIMARY KEY,
 			name VARCHAR(255) NOT NULL UNIQUE,
-			cost DECIMAL(10, 2) NOT NULL,
+			cost DECIMAL(10, 2) NOT NULL CHECK (cost > 0),
 			has_meat BOOLEAN NOT NULL,
 			has_animal_products BOOLEAN NOT NULL
 		);`,
 
-		`DROP TABLE IF EXISTS pizza_ingredient;`,
 		`CREATE TABLE pizza_ingredient(
 			pizza_id INT NOT NULL,
 			ingredient_id INT NOT NULL,
@@ -36,7 +48,6 @@ func InitDatabaseDev() {
 				ON DELETE CASCADE
 		);`,
 
-		`DROP TABLE IF EXISTS user;`,
 		`CREATE TABLE user(
 			id BIGINT AUTO_INCREMENT PRIMARY KEY,
 			username VARCHAR(100) NOT NULL UNIQUE,
@@ -45,7 +56,6 @@ func InitDatabaseDev() {
 			role ENUM('ADMIN', 'DELIVERY', 'CUSTOMER') NOT NULL
 		);`,
 
-		`DROP TABLE IF EXISTS customer;`,
 		`CREATE TABLE customer(
 			id BIGINT AUTO_INCREMENT PRIMARY KEY,
 			user_id BIGINT NOT NULL,
@@ -59,55 +69,71 @@ func InitDatabaseDev() {
 			FOREIGN KEY (user_id) REFERENCES user(id)
 		)`,
 
-		`DROP TABLE IF EXISTS orders;`,
+		`CREATE TABLE discount_code (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			code VARCHAR(50) NOT NULL UNIQUE,
+			discount_percentage INT NOT NULL CHECK (discount_percentage > 0 AND discount_percentage <= 100),
+			is_active BOOLEAN NOT NULL DEFAULT TRUE
+		)`,
+
+		`CREATE TABLE delivery_person(
+			id BIGINT AUTO_INCREMENT PRIMARY KEY,
+			name VARCHAR(100) NOT NULL,
+			user_id BIGINT NOT NULL,
+			vehicle_type VARCHAR(50) DEFAULT 'bike',
+			unavailable_until TIMESTAMP NULL DEFAULT NULL,
+
+			FOREIGN KEY (user_id) REFERENCES user(id)
+		)`,
+
 		`CREATE TABLE orders(
 			id BIGINT AUTO_INCREMENT PRIMARY KEY,
 			customer_id BIGINT NOT NULL,
 			timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			status ENUM('IN_PROGRESS', 'DELIVERED', 'FAILED') NOT NULL,
+			status ENUM('IN_PROGRESS', 'OUT_FOR_DELIVERY', 'DELIVERED', 'FAILED') NOT NULL,
 			postal_code VARCHAR(10) NOT NULL,
 			delivery_address VARCHAR(256) NOT NULL,
+			discount_code_id INT DEFAULT NULL,
+			delivery_person_id BIGINT DEFAULT NULL,
 
-			FOREIGN KEY (customer_id) REFERENCES customer(id)
+			FOREIGN KEY (customer_id) REFERENCES customer(id),
+			FOREIGN KEY (discount_code_id) REFERENCES discount_code(id),
+			FOREIGN KEY (delivery_person_id) REFERENCES delivery_person(id)
 		);`,
 
-		`DROP TABLE IF EXISTS order_pizza;`,
 		`CREATE TABLE order_pizza (
 			id BIGINT AUTO_INCREMENT PRIMARY KEY,
 			order_id BIGINT NOT NULL,
 			pizza_id INT NOT NULL,
-			quantity INT NOT NULL,
+			quantity INT NOT NULL CHECK (quantity > 0),
 			FOREIGN KEY (order_id) REFERENCES orders(id),
 			FOREIGN KEY (pizza_id) REFERENCES pizza(id)
 		)`,
 
-		`DROP TABLE IF EXISTS extra_item;`,
 		`CREATE TABLE extra_item (
 			id INT AUTO_INCREMENT PRIMARY KEY,
 			name VARCHAR(255) NOT NULL,
 			category ENUM('dessert', 'drink') NOT NULL,
-			price DECIMAL(10, 2) NOT NULL
+			price DECIMAL(10, 2) NOT NULL CHECK (price >= 0)
 		)`,
 
-		`DROP TABLE IF EXISTS order_extra_item;`,
 		`CREATE TABLE order_extra_item (
 			id BIGINT AUTO_INCREMENT PRIMARY KEY,
 			order_id BIGINT NOT NULL,
 			extra_item_id INT NOT NULL,
-			quantity INT NOT NULL,
+			quantity INT NOT NULL CHECK (quantity > 0),
 			FOREIGN KEY (order_id) REFERENCES orders(id),
 			FOREIGN KEY (extra_item_id) REFERENCES extra_item(id)
 		)`,
 
-		`DROP TABLE IF EXISTS delivery_person;`,
-		`CREATE TABLE delivery_person(
+		`CREATE TABLE discount_usage (
 			id BIGINT AUTO_INCREMENT PRIMARY KEY,
-			name VARCHAR(100) NOT NULL,
-			order_id BIGINT DEFAULT NULL,
 			user_id BIGINT NOT NULL,
-
-			FOREIGN KEY (order_id) REFERENCES orders(id),
-			FOREIGN KEY (user_id) REFERENCES user(id)
+			discount_code_id INT NOT NULL,
+			used_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (user_id) REFERENCES user(id),
+			FOREIGN KEY (discount_code_id) REFERENCES discount_code(id),
+			UNIQUE KEY unique_user_discount (user_id, discount_code_id)
 		)`,
 
 		`SET FOREIGN_KEY_CHECKS = 1;`,
@@ -169,6 +195,13 @@ func InitDatabaseDev() {
 	createExtraItemDbg("Coffee", "drink", 2.00)
 	createExtraItemDbg("Espresso", "drink", 2.50)
 
+	// Create some discount codes
+	createDiscountCodeDbg("SAVE10", 10)
+	createDiscountCodeDbg("SAVE20", 20)
+	createDiscountCodeDbg("HALFOFF", 50)
+	createDiscountCodeDbg("STUDENT", 15)
+	createDiscountCodeDbg("BIRTHDAY", 25) // Special birthday discount - 25% off!
+
 	ingredients, _ := GetAllIngredients()
 	log.Println("Ingredients:")
 	for _, ingr := range ingredients {
@@ -228,6 +261,14 @@ func createPizzaDbg(name string, ingredients []string) {
 func createExtraItemDbg(name string, category string, price float64) {
 	query := `INSERT INTO extra_item (name, category, price) VALUES (?, ?, ?)`
 	_, err := DATABASE.Exec(query, name, category, price)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func createDiscountCodeDbg(code string, percentage int) {
+	query := `INSERT INTO discount_code (code, discount_percentage, is_active) VALUES (?, ?, TRUE)`
+	_, err := DATABASE.Exec(query, code, percentage)
 	if err != nil {
 		log.Fatal(err)
 	}

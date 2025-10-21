@@ -2,17 +2,23 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 )
 
 type Order struct {
-	ID              int       `json:"id"`
-	CustomerID      int       `json:"customer_id"`
-	CustomerName    string    `json:"customer_name"`
-	Timestamp       time.Time `json:"timestamp"`
-	Status          string    `json:"status"`
-	PostalCode      string    `json:"postal_code"`
-	DeliveryAddress string    `json:"delivery_address"`
+	ID                 int       `json:"id"`
+	CustomerID         int       `json:"customer_id"`
+	CustomerName       string    `json:"customer_name"`
+	Timestamp          time.Time `json:"timestamp"`
+	Status             string    `json:"status"`
+	PostalCode         string    `json:"postal_code"`
+	DeliveryAddress    string    `json:"delivery_address"`
+	DiscountCodeID     *int      `json:"discount_code_id"`
+	DiscountCode       *string   `json:"discount_code"`
+	DiscountPercentage *int      `json:"discount_percentage"`
+	DeliveryPersonID   *int      `json:"delivery_person_id"`
+	DeliveryPersonName *string   `json:"delivery_person_name"`
 }
 
 type OrderPizza struct {
@@ -41,13 +47,13 @@ type OrderDetails struct {
 	TotalPrice float64          `json:"total_price"`
 }
 
-func CreateOrderWithTransaction(customerID int, deliveryAddress, postalCode string, pizzaItems []struct {
+func CreateOrderWithTransaction(customerID int, userID int, deliveryAddress, postalCode string, pizzaItems []struct {
 	PizzaID  int
 	Quantity int
 }, extraItems []struct {
 	ExtraItemID int
 	Quantity    int
-}) (int, error) {
+}, discountCode *string) (int, error) {
 	tx, err := DATABASE.Begin()
 	if err != nil {
 		return 0, err
@@ -59,11 +65,88 @@ func CreateOrderWithTransaction(customerID int, deliveryAddress, postalCode stri
 		}
 	}()
 
+	// Get discount code ID if provided
+	var discountCodeID *int
+	var isBirthdayDiscount bool
+	if discountCode != nil && *discountCode != "" {
+		var id int
+		var isActive bool
+		var code string
+		err = tx.QueryRow(`SELECT id, code, is_active FROM discount_code WHERE code = ?`, *discountCode).Scan(&id, &code, &isActive)
+		if err == nil && isActive {
+			discountCodeID = &id
+			isBirthdayDiscount = (code == "BIRTHDAY")
+
+			// Check if user already used this discount
+			var usageCount int
+			err = tx.QueryRow(`SELECT COUNT(*) FROM discount_usage WHERE user_id = ? AND discount_code_id = ?`, userID, id).Scan(&usageCount)
+			if err != nil {
+				return 0, err
+			}
+			if usageCount > 0 {
+				return 0, fmt.Errorf("discount code already used")
+			}
+		}
+		// If discount code not found or inactive, we just ignore it (don't fail the order)
+	}
+
+	// Handle birthday discount: free cheapest pizza + 1 free drink
+	if isBirthdayDiscount {
+		// Find cheapest pizza in the order
+		if len(pizzaItems) > 0 {
+			cheapestIdx := -1
+			var cheapestPrice float64
+
+			for i, item := range pizzaItems {
+				var price float64
+				err = tx.QueryRow(`
+					SELECT ROUND(SUM(i.cost) * 1.4 * 1.09, 4)
+					FROM pizza_ingredient pi
+					JOIN ingredient i ON pi.ingredient_id = i.id
+					WHERE pi.pizza_id = ?
+				`, item.PizzaID).Scan(&price)
+
+				if err == nil {
+					if cheapestIdx == -1 || price < cheapestPrice {
+						cheapestIdx = i
+						cheapestPrice = price
+					}
+				}
+			}
+
+			// Remove one quantity from cheapest pizza (make it free)
+			if cheapestIdx != -1 && pizzaItems[cheapestIdx].Quantity > 0 {
+				pizzaItems[cheapestIdx].Quantity--
+				// If quantity becomes 0, we'll skip it when inserting
+			}
+		}
+
+		// Add 1 free drink (find cheapest drink)
+		var cheapestDrinkID int
+		err = tx.QueryRow(`
+			SELECT id FROM extra_item 
+			WHERE category = 'drink' 
+			ORDER BY price ASC 
+			LIMIT 1
+		`).Scan(&cheapestDrinkID)
+
+		if err == nil {
+			// Add free drink to extras
+			extraItems = append(extraItems, struct {
+				ExtraItemID int
+				Quantity    int
+			}{
+				ExtraItemID: cheapestDrinkID,
+				Quantity:    1,
+			})
+		}
+	}
+
 	query := `
-		INSERT INTO orders (customer_id, delivery_address, postal_code, status, timestamp)
-		VALUES (?, ?, ?, 'IN_PROGRESS', NOW())
+		INSERT INTO orders (customer_id, delivery_address, postal_code, status, timestamp, discount_code_id)
+		VALUES (?, ?, ?, 'IN_PROGRESS', NOW(), ?)
 	`
-	result, err := tx.Exec(query, customerID, deliveryAddress, postalCode)
+	result, err := tx.Exec(query, customerID, deliveryAddress, postalCode, discountCodeID)
 	if err != nil {
 		return 0, err
 	}
@@ -75,9 +158,11 @@ func CreateOrderWithTransaction(customerID int, deliveryAddress, postalCode stri
 
 	pizzaQuery := `INSERT INTO order_pizza (order_id, pizza_id, quantity) VALUES (?, ?, ?)`
 	for _, item := range pizzaItems {
-		_, err = tx.Exec(pizzaQuery, orderID, item.PizzaID, item.Quantity)
-		if err != nil {
-			return 0, err
+		if item.Quantity > 0 { // Only insert if quantity > 0
+			_, err = tx.Exec(pizzaQuery, orderID, item.PizzaID, item.Quantity)
+			if err != nil {
+				return 0, err
+			}
 		}
 	}
 
@@ -88,6 +173,14 @@ func CreateOrderWithTransaction(customerID int, deliveryAddress, postalCode stri
 			if err != nil {
 				return 0, err
 			}
+		}
+	}
+
+	// Record discount usage
+	if discountCodeID != nil {
+		_, err = tx.Exec(`INSERT INTO discount_usage (user_id, discount_code_id, used_at) VALUES (?, ?, NOW())`, userID, *discountCodeID)
+		if err != nil {
+			return 0, err
 		}
 	}
 
@@ -301,9 +394,12 @@ func DeleteOrder(orderID int) error {
 
 func GetAllOrders() ([]Order, error) {
 	query := `
-		SELECT o.id, o.customer_id, c.name as customer_name, o.timestamp, o.status, o.postal_code, o.delivery_address
+		SELECT o.id, o.customer_id, c.name as customer_name, o.timestamp, o.status, o.postal_code, o.delivery_address,
+		       o.discount_code_id, dc.code, dc.discount_percentage, o.delivery_person_id, dp.name as delivery_person_name
 		FROM orders o
 		LEFT JOIN customer c ON o.customer_id = c.id
+		LEFT JOIN discount_code dc ON o.discount_code_id = dc.id
+		LEFT JOIN delivery_person dp ON o.delivery_person_id = dp.id
 		ORDER BY o.timestamp DESC
 	`
 	rows, err := DATABASE.Query(query)
@@ -315,16 +411,43 @@ func GetAllOrders() ([]Order, error) {
 	var orders []Order
 	for rows.Next() {
 		var order Order
-		var customerName sql.NullString
-		err := rows.Scan(&order.ID, &order.CustomerID, &customerName, &order.Timestamp, &order.Status, &order.PostalCode, &order.DeliveryAddress)
+		var customerName, discountCode, deliveryPersonName sql.NullString
+		var discountCodeID, discountPercentage, deliveryPersonID sql.NullInt64
+
+		err := rows.Scan(&order.ID, &order.CustomerID, &customerName, &order.Timestamp, &order.Status,
+			&order.PostalCode, &order.DeliveryAddress, &discountCodeID, &discountCode, &discountPercentage,
+			&deliveryPersonID, &deliveryPersonName)
 		if err != nil {
 			return nil, err
 		}
+
 		if customerName.Valid {
 			order.CustomerName = customerName.String
 		} else {
 			order.CustomerName = "Unknown"
 		}
+
+		if discountCodeID.Valid {
+			id := int(discountCodeID.Int64)
+			order.DiscountCodeID = &id
+		}
+		if discountCode.Valid {
+			code := discountCode.String
+			order.DiscountCode = &code
+		}
+		if discountPercentage.Valid {
+			pct := int(discountPercentage.Int64)
+			order.DiscountPercentage = &pct
+		}
+		if deliveryPersonID.Valid {
+			dpID := int(deliveryPersonID.Int64)
+			order.DeliveryPersonID = &dpID
+		}
+		if deliveryPersonName.Valid {
+			dpName := deliveryPersonName.String
+			order.DeliveryPersonName = &dpName
+		}
+
 		orders = append(orders, order)
 	}
 

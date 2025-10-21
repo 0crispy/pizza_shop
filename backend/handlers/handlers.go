@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	database "pizza_shop/backend/database"
 	"sort"
 	"strings"
+	"time"
 )
 
 func IndexHandler(w http.ResponseWriter, r *http.Request) {
@@ -41,6 +43,7 @@ func LoginGetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func AdminHandler(w http.ResponseWriter, r *http.Request) {
+
 	username := r.URL.Query().Get("username")
 	password := r.URL.Query().Get("password")
 
@@ -76,6 +79,18 @@ func AdminHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		username = userCookie.Value
 		password = passCookie.Value
+
+		// Verify cookie credentials
+		ok, _ := database.TryLogin(username, password)
+		if !ok {
+			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+			return
+		}
+		role, err := database.GetUserRole(username)
+		if err != nil || role != database.AdminRole.String() {
+			http.Error(w, "Not an admin user", http.StatusForbidden)
+			return
+		}
 	}
 	users, _ := database.GetAllUsers()
 	orders, _ := database.GetAllOrders()
@@ -106,6 +121,8 @@ func AdminHandler(w http.ResponseWriter, r *http.Request) {
 <button onclick="showTab('pizzas-tab')">Pizzas</button>
 <button onclick="showTab('ingredients-tab')">Ingredients</button>
 <button onclick="showTab('extras-tab')">Desserts & Drinks</button>
+<button onclick="showTab('discounts-tab')">Discount Codes</button>
+<button onclick="showTab('reports-tab')">Reports</button>
 <hr>
 
 <div id="users-tab" style="display:block;">
@@ -134,7 +151,7 @@ func AdminHandler(w http.ResponseWriter, r *http.Request) {
 
 <div id="orders-tab" style="display:none;">
 <h2>Orders</h2>
-<table border="1"><tr><th>ID</th><th>Username</th><th>Status</th><th>Delivery Address</th><th>Postal Code</th><th>Actions</th></tr>`
+<table border="1"><tr><th>ID</th><th>Username</th><th>Status</th><th>Delivery Address</th><th>Postal Code</th><th>Driver</th><th>Actions</th></tr>`
 
 	for _, o := range orders {
 		// Get order details (pizzas and extras)
@@ -163,7 +180,35 @@ func AdminHandler(w http.ResponseWriter, r *http.Request) {
 			itemsHTML += fmt.Sprintf("<br><b>Total: $%.2f</b>", pizzaTotal+extrasTotal)
 		}
 
-		html += fmt.Sprintf(`<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>
+		// Prepare driver dropdown
+		driverDropdown := `<form method="POST" action="/admin/orders/assign-delivery" style="display:inline;">
+<input type="hidden" name="order_id" value="` + fmt.Sprintf("%d", o.ID) + `">
+<select name="delivery_person_id">
+<option value="">No Driver</option>`
+
+		for _, dp := range deliveryPersons {
+			selected := ""
+			dpID, ok := dp["id"].(int)
+			if !ok {
+				// Try int64
+				dpID64, ok := dp["id"].(int64)
+				if ok {
+					dpID = int(dpID64)
+				}
+			}
+			if o.DeliveryPersonID != nil && *o.DeliveryPersonID == dpID {
+				selected = "selected"
+			}
+			driverDropdown += fmt.Sprintf(`<option value="%v" %s>%v</option>`, dp["id"], selected, dp["username"])
+		}
+		driverDropdown += `</select><input type="submit" value="Assign"></form>`
+
+		driverDisplay := "None"
+		if o.DeliveryPersonName != nil {
+			driverDisplay = *o.DeliveryPersonName
+		}
+
+		html += fmt.Sprintf(`<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s<br>%s</td><td>
 <button type="button" onclick="document.getElementById('order-details-%d').style.display = document.getElementById('order-details-%d').style.display === 'none' ? 'table-row' : 'none'">View Details</button>
 <form method="POST" action="/admin/orders/update-status" style="display:inline;">
 <input type="hidden" name="id" value="%d">
@@ -173,8 +218,8 @@ func AdminHandler(w http.ResponseWriter, r *http.Request) {
 <form method="POST" action="/admin/orders/delete" style="display:inline;">
 <input type="hidden" name="id" value="%d">
 <input type="submit" value="Delete" onclick="return confirm('Delete this order?')"></form></td></tr>
-<tr id="order-details-%d" style="display:none;"><td colspan="6" style="background:#f0f0f0;padding:10px;">%s</td></tr>`,
-			o.ID, o.CustomerName, o.Status, o.DeliveryAddress, o.PostalCode,
+<tr id="order-details-%d" style="display:none;"><td colspan="7" style="background:#f0f0f0;padding:10px;">%s</td></tr>`,
+			o.ID, o.CustomerName, o.Status, o.DeliveryAddress, o.PostalCode, driverDisplay, driverDropdown,
 			o.ID, o.ID,
 			o.ID,
 			func() string {
@@ -325,9 +370,293 @@ func AdminHandler(w http.ResponseWriter, r *http.Request) {
 
 	html += `</table></div>
 
+<div id="discounts-tab" style="display:none;">
+<h2>Discount Codes</h2>
+<h3>Create Discount Code</h3>
+<form method="POST" action="/admin/discount/create">
+<table><tr><td><b>Code:</b></td><td><input type="text" name="code" required></td></tr>
+<tr><td><b>Discount %:</b></td><td><input type="number" name="percentage" min="1" max="100" required></td></tr>
+<tr><td colspan="2"><input type="submit" value="Create Code"></td></tr></table>
+</form>
+<hr>
+<h3>All Discount Codes</h3>
+<table border="1"><tr><th>ID</th><th>Code</th><th>Discount %</th><th>Active</th><th>Actions</th></tr>`
+
+	// Fetch discount codes
+	discountRows, err := database.DATABASE.Query("SELECT id, code, discount_percentage, is_active FROM discount_code ORDER BY code")
+	if err == nil {
+		defer discountRows.Close()
+		for discountRows.Next() {
+			var id, percentage int
+			var code string
+			var isActive bool
+			if discountRows.Scan(&id, &code, &percentage, &isActive) == nil {
+				activeChecked := ""
+				if isActive {
+					activeChecked = "checked"
+				}
+				html += fmt.Sprintf(`<tr>
+<form method="POST" action="/admin/discount/update" style="display:inline;">
+<td>%d<input type="hidden" name="id" value="%d"></td>
+<td><input type="text" name="code" value="%s" required></td>
+<td><input type="number" name="percentage" value="%d" min="1" max="100" required style="width:60px;"></td>
+<td><input type="checkbox" name="is_active" %s></td>
+<td><input type="submit" value="Update">
+<button type="button" onclick="this.closest('tr').querySelector('form').reset()">Cancel</button>
+</form>
+<form method="POST" action="/admin/discount/delete" style="display:inline;">
+<input type="hidden" name="id" value="%d">
+<input type="submit" value="Delete" onclick="return confirm('Delete this discount code?')"></form></td></tr>`,
+					id, id, code, percentage, activeChecked, id)
+			}
+		}
+	}
+
+	html += `</table></div>
+
+<div id="reports-tab" style="display:none;">
+<h2>📊 Staff Reports</h2>
+
+<h3>📦 Undelivered Orders</h3>
+<table border="1"><tr><th>Order ID</th><th>Customer</th><th>Address</th><th>Status</th><th>Timestamp</th><th>Items</th></tr>`
+
+	// Report 1: Undelivered Orders (IN_PROGRESS or OUT_FOR_DELIVERY)
+	undeliveredQuery := `
+		SELECT o.id, c.name, o.delivery_address, o.status, o.timestamp
+		FROM orders o
+		JOIN customer c ON o.customer_id = c.id
+		WHERE o.status IN ('IN_PROGRESS', 'OUT_FOR_DELIVERY')
+		ORDER BY o.timestamp DESC
+	`
+	undeliveredRows, err := database.DATABASE.Query(undeliveredQuery)
+	if err == nil {
+		defer undeliveredRows.Close()
+		for undeliveredRows.Next() {
+			var orderID int
+			var customerName, address, status string
+			var timestamp time.Time
+			if undeliveredRows.Scan(&orderID, &customerName, &address, &status, &timestamp) == nil {
+				// Get order items
+				itemsQuery := `
+					SELECT p.name, op.quantity 
+					FROM order_pizza op 
+					JOIN pizza p ON op.pizza_id = p.id 
+					WHERE op.order_id = ?
+				`
+				itemRows, _ := database.DATABASE.Query(itemsQuery, orderID)
+				var items []string
+				if itemRows != nil {
+					for itemRows.Next() {
+						var pizzaName string
+						var qty int
+						if itemRows.Scan(&pizzaName, &qty) == nil {
+							items = append(items, fmt.Sprintf("%s x%d", pizzaName, qty))
+						}
+					}
+					itemRows.Close()
+				}
+				itemsList := strings.Join(items, ", ")
+				if itemsList == "" {
+					itemsList = "No items"
+				}
+
+				html += fmt.Sprintf(`<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>`,
+					orderID, customerName, address, status, timestamp.Format("2006-01-02 15:04"), itemsList)
+			}
+		}
+	}
+
+	html += `</table><br><hr width="70%"><br>
+
+<h3>🏆 Top 3 Pizzas (Last 30 Days)</h3>
+<table border="1"><tr><th>Rank</th><th>Pizza</th><th>Total Sold</th></tr>`
+
+	// Report 2: Top 3 Pizzas
+	topPizzasQuery := `
+		SELECT p.name, SUM(op.quantity) as total_sold
+		FROM order_pizza op
+		JOIN pizza p ON op.pizza_id = p.id
+		JOIN orders o ON op.order_id = o.id
+		WHERE o.timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+		GROUP BY p.id, p.name
+		ORDER BY total_sold DESC
+		LIMIT 3
+	`
+	topPizzasRows, err := database.DATABASE.Query(topPizzasQuery)
+	if err == nil {
+		defer topPizzasRows.Close()
+		rank := 1
+		for topPizzasRows.Next() {
+			var pizzaName string
+			var totalSold int
+			if topPizzasRows.Scan(&pizzaName, &totalSold) == nil {
+				medal := "🥇"
+				if rank == 2 {
+					medal = "🥈"
+				} else if rank == 3 {
+					medal = "🥉"
+				}
+				html += fmt.Sprintf(`<tr><td>%s #%d</td><td><b>%s</b></td><td>%d</td></tr>`,
+					medal, rank, pizzaName, totalSold)
+				rank++
+			}
+		}
+	}
+
+	html += `</table><br><hr width="70%"><br>
+
+<h3>💰 Revenue by Customer Gender</h3>
+<table border="1"><tr><th>Gender</th><th>Total Revenue</th><th>Orders</th><th>Avg Order Value</th></tr>`
+
+	// Report 3: Revenue by Gender
+	genderRevenueQuery := `
+		SELECT c.gender, COUNT(DISTINCT o.id) as order_count,
+		       SUM(
+		           (SELECT SUM(
+		               (SELECT ROUND(SUM(i.cost) * 1.4 * 1.09, 2)
+		                FROM pizza_ingredient pi
+		                JOIN ingredient i ON pi.ingredient_id = i.id
+		                WHERE pi.pizza_id = op.pizza_id) * op.quantity
+		           ) FROM order_pizza op WHERE op.order_id = o.id)
+		       ) as total_revenue
+		FROM orders o
+		JOIN customer c ON o.customer_id = c.id
+		GROUP BY c.gender
+		ORDER BY total_revenue DESC
+	`
+	genderRevenueRows, err := database.DATABASE.Query(genderRevenueQuery)
+	if err == nil {
+		defer genderRevenueRows.Close()
+		for genderRevenueRows.Next() {
+			var gender string
+			var orderCount int
+			var totalRevenue sql.NullFloat64
+			if genderRevenueRows.Scan(&gender, &orderCount, &totalRevenue) == nil {
+				revenue := 0.0
+				if totalRevenue.Valid {
+					revenue = totalRevenue.Float64
+				}
+				avgOrder := 0.0
+				if orderCount > 0 {
+					avgOrder = revenue / float64(orderCount)
+				}
+				html += fmt.Sprintf(`<tr><td>%s</td><td>$%.2f</td><td>%d</td><td>$%.2f</td></tr>`,
+					gender, revenue, orderCount, avgOrder)
+			}
+		}
+	}
+
+	html += `</table><br><hr width="70%"><br>
+
+<h3>👥 Revenue by Age Group</h3>
+<table border="1"><tr><th>Age Group</th><th>Total Revenue</th><th>Orders</th><th>Avg Order Value</th></tr>`
+
+	// Report 4: Revenue by Age Group
+	ageGroupRevenueQuery := `
+		SELECT 
+		    CASE 
+		        WHEN TIMESTAMPDIFF(YEAR, c.birth_date, CURDATE()) < 25 THEN 'Under 25'
+		        WHEN TIMESTAMPDIFF(YEAR, c.birth_date, CURDATE()) BETWEEN 25 AND 34 THEN '25-34'
+		        WHEN TIMESTAMPDIFF(YEAR, c.birth_date, CURDATE()) BETWEEN 35 AND 44 THEN '35-44'
+		        WHEN TIMESTAMPDIFF(YEAR, c.birth_date, CURDATE()) BETWEEN 45 AND 54 THEN '45-54'
+		        WHEN TIMESTAMPDIFF(YEAR, c.birth_date, CURDATE()) >= 55 THEN '55+'
+		        ELSE 'Unknown'
+		    END as age_group,
+		    COUNT(DISTINCT o.id) as order_count,
+		    SUM(
+		        (SELECT SUM(
+		            (SELECT ROUND(SUM(i.cost) * 1.4 * 1.09, 2)
+		             FROM pizza_ingredient pi
+		             JOIN ingredient i ON pi.ingredient_id = i.id
+		             WHERE pi.pizza_id = op.pizza_id) * op.quantity
+		        ) FROM order_pizza op WHERE op.order_id = o.id)
+		    ) as total_revenue
+		FROM orders o
+		JOIN customer c ON o.customer_id = c.id
+		WHERE c.birth_date IS NOT NULL
+		GROUP BY age_group
+		ORDER BY 
+		    CASE age_group
+		        WHEN 'Under 25' THEN 1
+		        WHEN '25-34' THEN 2
+		        WHEN '35-44' THEN 3
+		        WHEN '45-54' THEN 4
+		        WHEN '55+' THEN 5
+		        ELSE 6
+		    END
+	`
+	ageGroupRevenueRows, err := database.DATABASE.Query(ageGroupRevenueQuery)
+	if err == nil {
+		defer ageGroupRevenueRows.Close()
+		for ageGroupRevenueRows.Next() {
+			var ageGroup string
+			var orderCount int
+			var totalRevenue sql.NullFloat64
+			if ageGroupRevenueRows.Scan(&ageGroup, &orderCount, &totalRevenue) == nil {
+				revenue := 0.0
+				if totalRevenue.Valid {
+					revenue = totalRevenue.Float64
+				}
+				avgOrder := 0.0
+				if orderCount > 0 {
+					avgOrder = revenue / float64(orderCount)
+				}
+				html += fmt.Sprintf(`<tr><td>%s</td><td>$%.2f</td><td>%d</td><td>$%.2f</td></tr>`,
+					ageGroup, revenue, orderCount, avgOrder)
+			}
+		}
+	}
+
+	html += `</table><br><hr width="70%"><br>
+
+<h3>📍 Revenue by Postal Code (Top 10)</h3>
+<table border="1"><tr><th>Postal Code</th><th>Total Revenue</th><th>Orders</th><th>Avg Order Value</th></tr>`
+
+	// Report 5: Revenue by Postal Code
+	postalCodeRevenueQuery := `
+		SELECT c.postal_code, COUNT(DISTINCT o.id) as order_count,
+		       SUM(
+		           (SELECT SUM(
+		               (SELECT ROUND(SUM(i.cost) * 1.4 * 1.09, 2)
+		                FROM pizza_ingredient pi
+		                JOIN ingredient i ON pi.ingredient_id = i.id
+		                WHERE pi.pizza_id = op.pizza_id) * op.quantity
+		           ) FROM order_pizza op WHERE op.order_id = o.id)
+		       ) as total_revenue
+		FROM orders o
+		JOIN customer c ON o.customer_id = c.id
+		GROUP BY c.postal_code
+		ORDER BY total_revenue DESC
+		LIMIT 10
+	`
+	postalCodeRevenueRows, err := database.DATABASE.Query(postalCodeRevenueQuery)
+	if err == nil {
+		defer postalCodeRevenueRows.Close()
+		for postalCodeRevenueRows.Next() {
+			var postalCode string
+			var orderCount int
+			var totalRevenue sql.NullFloat64
+			if postalCodeRevenueRows.Scan(&postalCode, &orderCount, &totalRevenue) == nil {
+				revenue := 0.0
+				if totalRevenue.Valid {
+					revenue = totalRevenue.Float64
+				}
+				avgOrder := 0.0
+				if orderCount > 0 {
+					avgOrder = revenue / float64(orderCount)
+				}
+				html += fmt.Sprintf(`<tr><td>%s</td><td>$%.2f</td><td>%d</td><td>$%.2f</td></tr>`,
+					postalCode, revenue, orderCount, avgOrder)
+			}
+		}
+	}
+
+	html += `</table>
+</div>
+
 <script>
 function showTab(tabId) {
-  const tabs = ['users-tab', 'orders-tab', 'delivery-tab', 'pizzas-tab', 'ingredients-tab', 'extras-tab'];
+  const tabs = ['users-tab', 'orders-tab', 'delivery-tab', 'pizzas-tab', 'ingredients-tab', 'extras-tab', 'discounts-tab', 'reports-tab'];
   tabs.forEach(id => document.getElementById(id).style.display = (id === tabId) ? 'block' : 'none');
 }
 </script>
@@ -861,6 +1190,7 @@ func CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 		Password        string `json:"password"`
 		DeliveryAddress string `json:"delivery_address"`
 		PostalCode      string `json:"postal_code"`
+		DiscountCode    string `json:"discount_code"`
 		CartItems       []struct {
 			ID       int    `json:"id"`
 			Quantity int    `json:"quantity"`
@@ -945,10 +1275,12 @@ func CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 
 	orderID, err := database.CreateOrderWithTransaction(
 		customerID,
+		userID,
 		req.DeliveryAddress,
 		req.PostalCode,
 		pizzaItems,
 		extraItems,
+		&req.DiscountCode,
 	)
 	if err != nil {
 		fmt.Println(err)
@@ -956,7 +1288,14 @@ func CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 			Ok    bool   `json:"ok"`
 			Error string `json:"error"`
 		}
-		json.NewEncoder(w).Encode(Msg{Ok: false, Error: "Failed to create order"})
+
+		// Check for specific errors
+		errorMsg := "Failed to create order"
+		if err.Error() == "discount code already used" {
+			errorMsg = "You have already used this discount code"
+		}
+
+		json.NewEncoder(w).Encode(Msg{Ok: false, Error: errorMsg})
 		return
 	}
 
@@ -973,40 +1312,60 @@ func GetAvailableDeliveriesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify delivery person authentication
-	username := r.Header.Get("X-Username")
-	password := r.Header.Get("X-Password")
-	if username == "" || password == "" {
-		userCookie, _ := r.Cookie("X-Username")
-		passCookie, _ := r.Cookie("X-Password")
-		if userCookie != nil && passCookie != nil {
-			username = userCookie.Value
-			password = passCookie.Value
-		}
+	// Get credentials from cookies
+	var username, password string
+	userCookie, err := r.Cookie("user")
+	passCookie, err2 := r.Cookie("pass")
+
+	if err == nil && err2 == nil {
+		username = userCookie.Value
+		password = passCookie.Value
+	} else {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":    false,
+			"error": "Not authenticated",
+		})
+		return
 	}
 
 	success, _ := database.TryLogin(username, password)
 	if !success {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":    false,
+			"error": "Invalid credentials",
+		})
 		return
 	}
 
 	// Verify user is a delivery person
 	role, err := database.GetUserRole(username)
 	if err != nil || role != database.DeliveryRole.String() {
-		http.Error(w, "Not authorized as delivery person", http.StatusForbidden)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":    false,
+			"error": "Not authorized as delivery person",
+		})
 		return
 	}
 
 	// Get available deliveries
 	deliveries, err := database.GetAvailableDeliveries()
 	if err != nil {
-		http.Error(w, "Failed to get available deliveries", http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":    false,
+			"error": "Failed to get available deliveries",
+		})
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(deliveries)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"ok":     true,
+		"orders": deliveries,
+	})
 }
 
 func GetAssignedDeliveriesHandler(w http.ResponseWriter, r *http.Request) {
@@ -1015,53 +1374,81 @@ func GetAssignedDeliveriesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify delivery person authentication
-	username := r.Header.Get("X-Username")
-	password := r.Header.Get("X-Password")
-	if username == "" || password == "" {
-		userCookie, _ := r.Cookie("X-Username")
-		passCookie, _ := r.Cookie("X-Password")
-		if userCookie != nil && passCookie != nil {
-			username = userCookie.Value
-			password = passCookie.Value
-		}
+	// Get credentials from cookies
+	var username, password string
+	userCookie, err := r.Cookie("user")
+	passCookie, err2 := r.Cookie("pass")
+
+	if err == nil && err2 == nil {
+		username = userCookie.Value
+		password = passCookie.Value
+	} else {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":    false,
+			"error": "Not authenticated",
+		})
+		return
 	}
 
 	success, _ := database.TryLogin(username, password)
 	if !success {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":    false,
+			"error": "Invalid credentials",
+		})
 		return
 	}
 
 	// Verify user is a delivery person
 	role, err := database.GetUserRole(username)
 	if err != nil || role != database.DeliveryRole.String() {
-		http.Error(w, "Not authorized as delivery person", http.StatusForbidden)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":    false,
+			"error": "Not authorized as delivery person",
+		})
 		return
 	}
 
 	// Get user ID and delivery person ID
 	userID, err := database.GetUserIDFromUsername(username)
 	if err != nil {
-		http.Error(w, "User not found", http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":    false,
+			"error": "User not found",
+		})
 		return
 	}
 
 	deliveryPersonID, err := database.GetDeliveryPersonIDFromUserID(userID)
 	if err != nil {
-		http.Error(w, "Delivery person not found", http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":    false,
+			"error": "Delivery person not found",
+		})
 		return
 	}
 
 	// Get assigned deliveries
 	deliveries, err := database.GetAssignedDeliveries(deliveryPersonID)
 	if err != nil {
-		http.Error(w, "Failed to get assigned deliveries", http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":    false,
+			"error": "Failed to get assigned deliveries",
+		})
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(deliveries)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"ok":     true,
+		"orders": deliveries,
+	})
 }
 
 func AssignDeliveryHandler(w http.ResponseWriter, r *http.Request) {
@@ -1070,16 +1457,17 @@ func AssignDeliveryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify delivery person authentication
-	username := r.Header.Get("X-Username")
-	password := r.Header.Get("X-Password")
-	if username == "" || password == "" {
-		userCookie, _ := r.Cookie("X-Username")
-		passCookie, _ := r.Cookie("X-Password")
-		if userCookie != nil && passCookie != nil {
-			username = userCookie.Value
-			password = passCookie.Value
-		}
+	// Verify delivery person authentication - check cookies
+	var username, password string
+	userCookie, err := r.Cookie("user")
+	passCookie, err2 := r.Cookie("pass")
+
+	if err == nil && err2 == nil {
+		username = userCookie.Value
+		password = passCookie.Value
+	} else {
+		http.Error(w, "Not authenticated", http.StatusUnauthorized)
+		return
 	}
 
 	success, _ := database.TryLogin(username, password)
@@ -1127,6 +1515,14 @@ func AssignDeliveryHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Order is already assigned", http.StatusConflict)
 		return
 	}
+	if err == database.ErrDeliveryPersonUnavailable {
+		http.Error(w, "You are currently unavailable (cooldown)", http.StatusConflict)
+		return
+	}
+	if err == database.ErrDeliveryPersonBusy {
+		http.Error(w, "You already have an active delivery", http.StatusConflict)
+		return
+	}
 	if err != nil {
 		http.Error(w, "Failed to assign delivery", http.StatusInternalServerError)
 		return
@@ -1142,16 +1538,17 @@ func UpdateDeliveryStatusHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify delivery person authentication
-	username := r.Header.Get("X-Username")
-	password := r.Header.Get("X-Password")
-	if username == "" || password == "" {
-		userCookie, _ := r.Cookie("X-Username")
-		passCookie, _ := r.Cookie("X-Password")
-		if userCookie != nil && passCookie != nil {
-			username = userCookie.Value
-			password = passCookie.Value
-		}
+	// Verify delivery person authentication - check cookies
+	var username, password string
+	userCookie, err := r.Cookie("user")
+	passCookie, err2 := r.Cookie("pass")
+
+	if err == nil && err2 == nil {
+		username = userCookie.Value
+		password = passCookie.Value
+	} else {
+		http.Error(w, "Not authenticated", http.StatusUnauthorized)
+		return
 	}
 
 	success, _ := database.TryLogin(username, password)
@@ -1724,7 +2121,7 @@ func ListExtraItemsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := `SELECT id, name, category, price, description FROM extra_item ORDER BY category, name`
+	query := `SELECT id, name, category, price FROM extra_item ORDER BY category, name`
 	rows, err := database.DATABASE.Query(query)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -1735,20 +2132,19 @@ func ListExtraItemsHandler(w http.ResponseWriter, r *http.Request) {
 	var items []map[string]interface{}
 	for rows.Next() {
 		var id int
-		var name, category, description string
+		var name, category string
 		var price float64
-		err := rows.Scan(&id, &name, &category, &price, &description)
+		err := rows.Scan(&id, &name, &category, &price)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		items = append(items, map[string]interface{}{
-			"id":          id,
-			"name":        name,
-			"category":    category,
-			"price":       price,
-			"description": description,
+			"id":       id,
+			"name":     name,
+			"category": category,
+			"price":    price,
 		})
 	}
 
@@ -1925,4 +2321,306 @@ func DeleteExtraItemHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"ok": true,
 	})
+}
+
+// Discount code handlers
+func ValidateDiscountCodeHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":    false,
+			"valid": false,
+		})
+		return
+	}
+
+	// Get user ID from cookie
+	userCookie, err := r.Cookie("user")
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":      true,
+			"valid":   false,
+			"message": "Please login to use discount codes",
+		})
+		return
+	}
+	username := userCookie.Value
+
+	userID, err := database.GetUserIDFromUsername(username)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":    true,
+			"valid": false,
+		})
+		return
+	}
+
+	var discountCodeID int
+	var discountPercentage int
+	var isActive bool
+	err = database.DATABASE.QueryRow(`SELECT id, discount_percentage, is_active FROM discount_code WHERE code = ?`, code).Scan(&discountCodeID, &discountPercentage, &isActive)
+
+	if err != nil || !isActive {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":      true,
+			"valid":   false,
+			"message": "Invalid or inactive discount code",
+		})
+		return
+	}
+
+	// Check if user has already used this discount code
+	var usageCount int
+	err = database.DATABASE.QueryRow(`SELECT COUNT(*) FROM discount_usage WHERE user_id = ? AND discount_code_id = ?`, userID, discountCodeID).Scan(&usageCount)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":    false,
+			"valid": false,
+		})
+		return
+	}
+
+	if usageCount > 0 {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":      true,
+			"valid":   false,
+			"message": "You have already used this discount code",
+		})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	response := map[string]interface{}{
+		"ok":                  true,
+		"valid":               true,
+		"discount_percentage": discountPercentage,
+		"discount_code_id":    discountCodeID,
+	}
+
+	// Special message for birthday discount
+	if code == "BIRTHDAY" {
+		response["message"] = "🎉 Birthday Special: Free cheapest pizza + free drink! 🎉"
+		response["is_birthday"] = true
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// CheckBirthdayDiscountHandler checks if it's the user's birthday
+func CheckBirthdayDiscountHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Get username from cookie
+	userCookie, err := r.Cookie("user")
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":          false,
+			"is_birthday": false,
+		})
+		return
+	}
+	username := userCookie.Value
+
+	// Get user ID from username
+	userID, err := database.GetUserIDFromUsername(username)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":          false,
+			"is_birthday": false,
+		})
+		return
+	}
+
+	// Check if it's their birthday
+	isBirthday, err := database.CheckCustomerBirthday(int64(userID))
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":          false,
+			"is_birthday": false,
+		})
+		return
+	}
+
+	if !isBirthday {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":          true,
+			"is_birthday": false,
+		})
+		return
+	}
+
+	// Check if they already used the birthday discount
+	var discountCodeID int
+	err = database.DATABASE.QueryRow(`SELECT id FROM discount_code WHERE code = 'BIRTHDAY'`).Scan(&discountCodeID)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":          false,
+			"is_birthday": false,
+		})
+		return
+	}
+
+	var usageCount int
+	err = database.DATABASE.QueryRow(`SELECT COUNT(*) FROM discount_usage WHERE user_id = ? AND discount_code_id = ?`, userID, discountCodeID).Scan(&usageCount)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":          false,
+			"is_birthday": false,
+		})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if usageCount > 0 {
+		// Already used birthday discount
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":           true,
+			"is_birthday":  true,
+			"already_used": true,
+			"message":      "You already used your birthday discount this year!",
+		})
+	} else {
+		// Can use birthday discount
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":           true,
+			"is_birthday":  true,
+			"already_used": false,
+			"code":         "BIRTHDAY",
+			"message":      "🎉 Happy Birthday! Get your cheapest pizza + 1 free drink! 🎉",
+		})
+	}
+}
+
+func CreateDiscountCodeHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if !isAdminFromHeaders(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	r.ParseForm()
+	code := r.FormValue("code")
+	var percentage int
+	fmt.Sscanf(r.FormValue("percentage"), "%d", &percentage)
+
+	if percentage < 1 || percentage > 100 {
+		http.Error(w, "Percentage must be between 1 and 100", http.StatusBadRequest)
+		return
+	}
+
+	query := `INSERT INTO discount_code (code, discount_percentage, is_active) VALUES (?, ?, TRUE)`
+	_, err := database.DATABASE.Exec(query, code, percentage)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/admin", http.StatusSeeOther)
+}
+
+func UpdateDiscountCodeHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if !isAdminFromHeaders(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	r.ParseForm()
+	var id int
+	fmt.Sscanf(r.FormValue("id"), "%d", &id)
+	code := r.FormValue("code")
+	var percentage int
+	fmt.Sscanf(r.FormValue("percentage"), "%d", &percentage)
+	isActive := r.FormValue("is_active") == "on"
+
+	if percentage < 1 || percentage > 100 {
+		http.Error(w, "Percentage must be between 1 and 100", http.StatusBadRequest)
+		return
+	}
+
+	query := `UPDATE discount_code SET code = ?, discount_percentage = ?, is_active = ? WHERE id = ?`
+	_, err := database.DATABASE.Exec(query, code, percentage, isActive, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/admin", http.StatusSeeOther)
+}
+
+func DeleteDiscountCodeHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete && r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if !isAdminFromHeaders(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var id string
+	if r.Method == http.MethodPost {
+		r.ParseForm()
+		id = r.FormValue("id")
+	} else {
+		id = r.URL.Query().Get("id")
+	}
+
+	if id == "" {
+		http.Error(w, "ID required", http.StatusBadRequest)
+		return
+	}
+
+	query := `DELETE FROM discount_code WHERE id = ?`
+	_, err := database.DATABASE.Exec(query, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/admin", http.StatusSeeOther)
+}
+
+func AssignDeliveryPersonHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if !isAdminFromHeaders(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	r.ParseForm()
+	var orderID, deliveryPersonID int
+	fmt.Sscanf(r.FormValue("order_id"), "%d", &orderID)
+	fmt.Sscanf(r.FormValue("delivery_person_id"), "%d", &deliveryPersonID)
+
+	query := `UPDATE orders SET delivery_person_id = ? WHERE id = ?`
+	_, err := database.DATABASE.Exec(query, deliveryPersonID, orderID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/admin", http.StatusSeeOther)
 }

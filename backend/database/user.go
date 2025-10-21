@@ -446,3 +446,28 @@ func DeleteUser(userID int) error {
 
 	return tx.Commit()
 }
+
+// CheckCustomerBirthday checks if today is the customer's birthday
+func CheckCustomerBirthday(userID int64) (bool, error) {
+	var birthDate sql.NullTime
+	query := `
+		SELECT c.birth_date 
+		FROM customer c 
+		WHERE c.user_id = ?
+	`
+	err := DATABASE.QueryRow(query, userID).Scan(&birthDate)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return false, err
+	}
+
+	if !birthDate.Valid {
+		return false, nil
+	}
+
+	// Check if today's month and day match the birth date
+	now := time.Now()
+	return now.Month() == birthDate.Time.Month() && now.Day() == birthDate.Time.Day(), nil
+}

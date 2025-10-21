@@ -13,14 +13,14 @@
       window.location = '/login?logout=1';
     }
 
-    function addToCart(id, name, price) {
+    function addToCart(id, name, price, type = 'pizza') {
       let cart = JSON.parse(localStorage.getItem('pizzaCart') || '[]');
       
-      const existingItem = cart.find(item => item.id === id);
+      const existingItem = cart.find(item => item.id === id && item.type === type);
       if (existingItem) {
         existingItem.quantity += 1;
       } else {
-        cart.push({ id, name, price, quantity: 1 });
+        cart.push({ id, name, price, quantity: 1, type });
       }
       
       localStorage.setItem('pizzaCart', JSON.stringify(cart));
@@ -39,12 +39,16 @@
 
     async function loadMenu() {
       try {
-        const response = await fetch('/admin/pizza/list', {
-          method: 'GET'
-        });
+        const [pizzaResponse, extrasResponse] = await Promise.all([
+          fetch('/admin/pizza/list', { method: 'GET' }),
+          fetch('/api/extra-items', { method: 'GET' })
+        ]);
         
-        const pizzas = await response.json();
+        const pizzas = await pizzaResponse.json();
+        const extras = await extrasResponse.json();
+        
         displayPizzas(pizzas);
+        displayExtras(extras);
       } catch (error) {
         console.error('Failed to load menu:', error);
       }
@@ -81,11 +85,52 @@
         
         const button = tr.querySelector('.add-to-cart-btn');
         button.addEventListener('click', function() {
-          addToCart(pizza.id, pizza.name, pizza.price);
+          addToCart(pizza.id, pizza.name, pizza.price, 'pizza');
         });
         
         tbody.appendChild(tr);
       });
+    }
+
+    function displayExtras(extras) {
+      const extrasDiv = document.getElementById('extras-section');
+      if (!extras || extras.length === 0) {
+        extrasDiv.style.display = 'none';
+        return;
+      }
+
+      // Group by category
+      const desserts = extras.filter(e => e.category === 'dessert');
+      const drinks = extras.filter(e => e.category === 'drink');
+
+      let html = '';
+      
+      if (desserts.length > 0) {
+        html += '<h3>Desserts</h3><table border="1" cellpadding="5" cellspacing="0" width="50%"><tr><th>Item</th><th>Price</th><th>Action</th></tr>';
+        desserts.forEach(item => {
+          html += `<tr>
+            <td><b>${item.name}</b></td>
+            <td align="right">$${item.price.toFixed(2)}</td>
+            <td align="center"><button onclick="addToCart(${item.id}, '${item.name}', ${item.price}, 'extra')">Add to Cart</button></td>
+          </tr>`;
+        });
+        html += '</table><br>';
+      }
+
+      if (drinks.length > 0) {
+        html += '<h3>Drinks</h3><table border="1" cellpadding="5" cellspacing="0" width="50%"><tr><th>Item</th><th>Price</th><th>Action</th></tr>';
+        drinks.forEach(item => {
+          html += `<tr>
+            <td><b>${item.name}</b></td>
+            <td align="right">$${item.price.toFixed(2)}</td>
+            <td align="center"><button onclick="addToCart(${item.id}, '${item.name}', ${item.price}, 'extra')">Add to Cart</button></td>
+          </tr>`;
+        });
+        html += '</table>';
+      }
+
+      extrasDiv.innerHTML = html;
+      extrasDiv.style.display = 'block';
     }
 
     async function ensureAuthAndSetupNav(){
@@ -139,6 +184,12 @@
         <tbody>
         </tbody>
       </table>
+
+      <br><hr width="70%">
+      
+      <div id="extras-section" style="display:none;">
+      </div>
+
     </center>
   </body>
 </html>

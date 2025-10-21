@@ -22,11 +22,28 @@
 </center>
 
 <script>
-    const u = sessionStorage.getItem('username');
-    document.getElementById('connected_as').textContent = 'Connected as: ' + u + '.';
+    // Ensure authentication
+    async function ensureAuth() {
+        const u = sessionStorage.getItem('username');
+        const p = sessionStorage.getItem('password');
+        
+        if (!u || !p) {
+            window.location = '/login';
+            return false;
+        }
+
+        // Set cookies for API requests
+        document.cookie = `user=${u}; path=/`;
+        document.cookie = `pass=${p}; path=/`;
+        
+        document.getElementById('connected_as').textContent = 'Connected as: ' + u + '.';
+        return true;
+    }
 
     // Function to load available deliveries (orders that are IN_PROGRESS and not assigned)
-    function loadAvailableDeliveries() {
+    async function loadAvailableDeliveries() {
+        if (!await ensureAuth()) return;
+        
         fetch('/delivery/available')
             .then(r => r.json())
             .then(data => {
@@ -63,7 +80,10 @@
     }
 
     // Function to load assigned deliveries for the current delivery person
-    function loadAssignedDeliveries() {
+    async function loadAssignedDeliveries() {
+        if (!await ensureAuth()) return;
+        
+        const u = sessionStorage.getItem('username');
         fetch(`/delivery/assigned?username=${encodeURIComponent(u)}`)
             .then(r => r.json())
             .then(data => {
@@ -89,7 +109,7 @@
                         <td>${date}</td>
                         <td>${order.status}</td>
                         <td>
-                            ${order.status === 'IN_PROGRESS' ? 
+                            ${(order.status === 'IN_PROGRESS' || order.status === 'OUT_FOR_DELIVERY') ? 
                             `<button onclick="markDelivered(${order.id})">Mark Delivered</button>
                             <button onclick="markFailed(${order.id})">Mark Failed</button>` : ''}
                             <button onclick="viewOrderDetails(${order.id})">View Details</button>
@@ -115,22 +135,25 @@
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                order_id: orderId,
-                username: u
+                order_id: orderId
             })
         })
-        .then(r => r.json())
-        .then(data => {
-            if (data.ok) {
-                alert('Delivery assigned successfully!');
-                loadAvailableDeliveries();
-                loadAssignedDeliveries();
+        .then(r => {
+            if (r.ok) {
+                return r.json().catch(() => ({status: 'ok'}));
             } else {
-                alert('Error: ' + (data.error || 'Unknown error'));
+                return r.text().then(text => {
+                    throw new Error(text || 'Failed to assign delivery');
+                });
             }
         })
+        .then(data => {
+            alert('Delivery assigned successfully!');
+            loadAvailableDeliveries();
+            loadAssignedDeliveries();
+        })
         .catch(err => {
-            alert('Error assigning delivery: ' + err.message);
+            alert('Error: ' + err.message);
         });
     }
 
@@ -153,21 +176,25 @@
             },
             body: JSON.stringify({
                 order_id: orderId,
-                username: u,
                 status: status
             })
         })
-        .then(r => r.json())
-        .then(data => {
-            if (data.ok) {
-                alert('Status updated successfully!');
-                loadAssignedDeliveries();
+        .then(r => {
+            if (r.ok) {
+                return r.json().catch(() => ({status: 'ok'}));
             } else {
-                alert('Error: ' + (data.error || 'Unknown error'));
+                return r.text().then(text => {
+                    throw new Error(text || 'Failed to update status');
+                });
             }
         })
+        .then(data => {
+            alert('Status updated successfully!');
+            loadAvailableDeliveries();
+            loadAssignedDeliveries();
+        })
         .catch(err => {
-            alert('Error updating status: ' + err.message);
+            alert('Error: ' + err.message);
         });
     }
 
@@ -176,7 +203,10 @@
         window.open(`/order-confirmation?order_id=${orderId}`, '_blank');
     }
 
-    // Load deliveries when the page loads
-    loadAvailableDeliveries();
-    loadAssignedDeliveries();
+    // Initialize page
+    (async function() {
+        await ensureAuth();
+        loadAvailableDeliveries();
+        loadAssignedDeliveries();
+    })();
 </script>
