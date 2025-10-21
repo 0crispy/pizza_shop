@@ -87,11 +87,12 @@
       
       const order = orderDetails.order;
       const pizzas = orderDetails.pizzas || [];
+      const extraItems = orderDetails.extra_items || [];
       
       let html = '<h2>Order #' + order.id + '</h2>';
-      html += '<p><strong>Customer:</strong> ' + order.customer_name + '</p>';
-      html += '<p><strong>Status:</strong> ' + order.status + '</p>';
-      html += '<p><strong>Order Time:</strong> ' + new Date(order.timestamp).toLocaleString('en-US', { 
+      html += '<p><b>Customer:</b> ' + order.customer_name + '</p>';
+      html += '<p><b>Status:</b> ' + order.status + '</p>';
+      html += '<p><b>Order Time:</b> ' + new Date(order.timestamp).toLocaleString('en-US', { 
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         year: 'numeric', 
         month: '2-digit', 
@@ -101,24 +102,38 @@
         second: '2-digit',
         hour12: false 
       }) + '</p>';
-      html += '<p><strong>Delivery Address:</strong> ' + order.delivery_address + '</p>';
-      html += '<p><strong>Postal Code:</strong> ' + order.postal_code + '</p>';
+      html += '<p><b>Delivery Address:</b> ' + order.delivery_address + '</p>';
+      html += '<p><b>Postal Code:</b> ' + order.postal_code + '</p>';
+      html += '<hr width="70%">';
       
-      html += '<h3>Items Ordered:</h3>';
-      html += '<table>';
-      html += '<thead><tr><th>Pizza</th><th>Quantity</th></tr></thead>';
+      html += '<h3>Items Ordered</h3>';
+      html += '<table border="1" cellpadding="8" cellspacing="0" width="70%">';
+      html += '<thead>';
+      html += '<tr><th>Item</th><th>Quantity</th><th>Price</th></tr>';
+      html += '</thead>';
       html += '<tbody>';
       
-      pizzas.forEach(pizza => {
+      // Display pizzas
+      pizzas.forEach((pizza, index) => {
         html += '<tr>';
-        html += '<td>' + pizza.pizza_name + '</td>';
-        html += '<td>' + pizza.quantity + '</td>';
+        html += '<td><b>' + pizza.pizza_name + '</b></td>';
+        html += '<td align="center">' + pizza.quantity + '</td>';
+        html += '<td align="right">-</td>';
+        html += '</tr>';
+      });
+      
+      // Display extra items (desserts and drinks)
+      extraItems.forEach((extra, index) => {
+        html += '<tr>';
+        html += '<td><b>' + extra.extra_item_name + '</b></td>';
+        html += '<td align="center">' + extra.quantity + '</td>';
+        html += '<td align="right">$' + (extra.price * extra.quantity).toFixed(2) + '</td>';
         html += '</tr>';
       });
       
       html += '</tbody></table>';
-      
-      html += '<p><strong>Total Price:</strong> $' + orderDetails.total_price.toFixed(2) + '</p>';
+      html += '<br>';
+      html += '<h3>Total Price: $' + orderDetails.total_price.toFixed(2) + '</h3>';
       
       container.innerHTML = html;
     }
@@ -130,28 +145,27 @@
   </script>
 </head>
 <body>
-  <nav>
-    <a href="/home">Home</a>
-    <a href="/account">Account</a>
-    <a id="admin-link" href="/admin" style="display:none;">Admin</a>
-    <a id="cart-link" href="/cart">Cart (0)</a>
-    <a href="#" onclick="logout(); return false;">Logout</a>
-  </nav>
-  <main class="container">
-    <h1>Order Confirmation</h1>
-    <p id="connected_as">Connected as: ?</p>
+  <center>
+    <nav>
+      <a href="/home">Home</a> |
+      <a href="/account">Account</a> |
+      <a id="admin-link" href="/admin" style="display:none;">Admin</a>
+      <a id="cart-link" href="/cart">Cart (0)</a> |
+      <a href="#" onclick="logout(); return false;">Logout</a>
+    </nav>
+    <hr>
     
-    <div class="success-message">
-      <p>✓ Your order has been placed successfully!</p>
-    </div>
+    <h1>Order Confirmation</h1>
+    <p id="connected_as"><i>Connected as: ?</i></p>
+    
+    <p><b>Your order has been placed successfully!</b></p>
     
     <div id="order-details">
       <p>Loading order details...</p>
     </div>
     
-    <div style="margin-top: 20px;">
-      <a href="/home"><button style="padding: 10px 20px;">Back to Home</button></a>
-    </div>
-  </main>
+    <br>
+    <a href="/home"><button>Back to Home</button></a>
+  </center>
 </body>
 </html>

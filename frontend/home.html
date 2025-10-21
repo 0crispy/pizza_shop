@@ -57,11 +57,11 @@
       tbody.innerHTML = '';
       
       if (!pizzas || pizzas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4">No pizzas available</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" align="center">No pizzas available</td></tr>';
         return;
       }
       
-      pizzas.forEach(pizza => {
+      pizzas.forEach((pizza, index) => {
         const dietInfo = [];
         if (pizza.is_vegan) {
           dietInfo.push('Vegan');
@@ -73,10 +73,10 @@
         
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${pizza.name}</td>
-          <td>$${pizza.price.toFixed(2)}</td>
-          <td>${dietInfo.join(', ')}</td>
-          <td><button class="add-to-cart-btn">Add to Cart</button></td>
+          <td><b>${pizza.name}</b></td>
+          <td align="right">$${pizza.price.toFixed(2)}</td>
+          <td align="center">${dietInfo.join(', ')}</td>
+          <td align="center"><button class="add-to-cart-btn">Add to Cart</button></td>
         `;
         
         const button = tr.querySelector('.add-to-cart-btn');
@@ -111,23 +111,23 @@
   </script>
   </head>
   <body>
+    <center>
     <nav>
-      <a href="/home">Home</a>
-      <a href="/account">Account</a>
+      <a href="/home"><b>Home</b></a> |
+      <a href="/account">Account</a> |
       <a id="admin-link" href="/admin" style="display:none;">Admin</a>
-      <a id="cart-link" href="/cart">Cart (0)</a>
+      <a id="cart-link" href="/cart">Cart (0)</a> |
       <a href="#" onclick="logout(); return false;">Logout</a>
     </nav>
-    <main class="container">
-      <h1>Welcome!</h1>
-      <p id="connected_as">Connected as: ?</p>
-        <img src="https://opengameart.org/sites/default/files/Capture_10.png" alt="pizza" width="30%" />
-        <div>
-          <p>We make our pizza with only the best ingredients.</p>
-        </div>
+    <hr>
+      <h1>Welcome to Pizza Shop!</h1>
+      <p id="connected_as"><i>Connected as: ?</i></p>
+      <img src="https://opengameart.org/sites/default/files/Capture_10.png" alt="pizza" width="30%" />
+      <p><b>We make our pizza with only the best ingredients.</b></p>
+      <hr width="70%">
 
-      <h2 class="section-title">Our menu</h2>
-      <table id="menu-table">
+      <h2>Our Menu</h2>
+      <table id="menu-table" border="1" cellpadding="8" cellspacing="0" width="70%">
         <thead>
           <tr>
             <th>Pizza</th>
@@ -139,6 +139,6 @@
         <tbody>
         </tbody>
       </table>
-    </main>
+    </center>
   </body>
 </html>

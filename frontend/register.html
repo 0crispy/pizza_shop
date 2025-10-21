@@ -1,66 +1,65 @@
-<h1>Welcome to our pizza shop!!</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Pizza Shop</title>
+</head>
+<body>
+  <center>
+    <h1>Welcome to Pizza Shop</h1>
+    <p><i>Create your account</i></p>
+    <hr>
 
+    <h2>Register</h2>
 
+    <form>
+      <table>
+        <tr><td><b>Username:</b></td></tr>
+        <tr><td><input type="text" id="username" name="username" required></td></tr>
 
+        <tr><td><b>Password:</b></td></tr>
+        <tr><td><input type="password" id="password" name="password" required></td></tr>
 
-<h2>Register</h2>
+        <tr><td><b>Your name:</b></td></tr>
+        <tr><td><input type="text" id="name" name="name" required></td></tr>
 
-<form>
-    <label for="username">Username:</label><br>
-    <input type="text" id="username" name="username" required><br>
+        <tr><td><b>Your gender:</b></td></tr>
+        <tr><td>
+          <input type="radio" id="male" name="gender" value="Male" required>
+          <label for="male">Male</label>
+          <input type="radio" id="female" name="gender" value="Female">
+          <label for="female">Female</label>
+          <input type="radio" id="nonbinary" name="gender" value="Non-binary">
+          <label for="nonbinary">Non-binary</label><br>
+          <input type="radio" id="none" name="gender" value="None">
+          <label for="none">Prefer not to say</label>
+          <input type="radio" id="other" name="gender" value="Other">
+          <label for="other">Other:</label>
+          <input type="text" id="other_gender" name="other_gender">
+        </td></tr>
 
-    <label for="password">Password:</label><br>
-    <input type="password" id="password" name="password" required><br><br>
+        <tr><td><b>Select your birth date:</b></td></tr>
+        <tr><td><input type="date" id="birth_date" name="birth_date"></td></tr>
+        <tr><td>
+          <input type="checkbox" id="no_birth_date" name="no_birth_date" value="true">
+          <label for="no_birth_date">I do not want to share my birth date</label>
+        </td></tr>
 
-    <label for="name">Your name:</label><br>
-    <input type="text" id="name" name="name" required><br><br>
+        <tr><td><b>Your address:</b></td></tr>
+        <tr><td><input type="text" id="address" name="address" required></td></tr>
 
-    <label>Your gender:</label><br>
-    <input type="radio" id="male" name="gender" value="Male" required>
-    <label for="male">Male</label><br>
+        <tr><td><b>Your postal code:</b></td></tr>
+        <tr><td><input type="text" id="postcode" name="postcode" required></td></tr>
 
-    <input type="radio" id="female" name="gender" value="Female">
-    <label for="female">Female</label><br>
+        <tr><td><p id="error"></p></td></tr>
 
-    <input type="radio" id="nonbinary" name="gender" value="Non-binary">
-    <label for="nonbinary">Non-binary</label><br>
+        <tr><td><button type="submit" onclick="login(event)">Register</button></td></tr>
+      </table>
+    </form>
 
-    <input type="radio" id="none" name="gender" value="None">
-    <label for="none">Prefer not to say</label><br>
-
-    <input type="radio" id="other" name="gender" value="Other">
-    <label for="other">Other:</label>
-    <input type="text" id="other_gender" name="other_gender"><br>
-
-    <br>
-
-    
-    <label for="birth_date">Select your birth date:</label><br>
-    <input type="date" id="birth_date" name="birth_date"><br>
-
-    <input type="checkbox" id="no_birth_date" name="no_birth_date" value="true">
-    <label for="no_birth_date">I do not want to share my birth date</label><br><br>
-    
-
-    <label for="address">Your address:</label><br>
-    <input type="text" id="address" name="address" required><br>
-
-    <label for="">Your postal code:</label><br>
-    <input type="text" id="postcode" name="postcode" required><br>
-
-
-    <br>
-
-
-    <p style="color:rgb(255, 75, 75)" id="error"></p>
-
-    <button type="submit" onclick="login(event)">
-        Register
-    </button>
-</form>
-
-
-<a href="/login">Already have an account? Login here</a>
+    <p>Already have an account? <a href="/login">Login here</a></p>
+  </center>
 
 
 <script>
@@ -151,3 +150,5 @@
     }
 
 </script>
+</body>
+</html>

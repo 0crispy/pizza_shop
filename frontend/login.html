@@ -1,26 +1,41 @@
-<h1>Welcome to our pizza shop!!</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Pizza Shop</title>
+</head>
+<body>
+  <center>
+    <h1>Welcome to Pizza Shop</h1>
+    <p><i>Please login to continue</i></p>
+    <hr>
 
+    <h2>Login</h2>
+    <form>
+      <table>
+        <tr>
+          <td><b>Username:</b></td>
+        </tr>
+        <tr>
+          <td><input type="text" id="username" name="username" required></td>
+        </tr>
+        <tr>
+          <td><b>Password:</b></td>
+        </tr>
+        <tr>
+          <td><input type="password" id="password" name="password" required></td>
+        </tr>
+        <tr>
+          <td><button type="submit" onclick="login(event)">Login</button></td>
+        </tr>
+      </table>
+    </form>
 
+    <p id="error"></p>
 
-
-<h2>Login</h2>
-<form>
-    <label for="username">Username:</label><br>
-    <input type="text" id="username" name="username" required><br><br>
-
-    <label for="password">Password:</label><br>
-    <input type="password" id="password" name="password" required><br><br>
-
-    <button type="submit" onclick="login(event)">
-        Login
-    </button>
-</form>
-
-
-<p style="color:rgb(255, 75, 75)" id="error"></p>
-
-<a href="/register">No account? Register here</a>
-
+    <p>No account? <a href="/register">Register here</a></p>
+  </center>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
 <script>
@@ -97,3 +112,5 @@
             });
     }
 </script>
+</body>
+</html>

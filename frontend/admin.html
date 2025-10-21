@@ -4,101 +4,55 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Panel</title>
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; }
-    h2 { margin-top: 24px; color: #333; }
-    h3 { color: #333; }
-    label { color: #333; font-weight: 500; }
-    input, button, select { margin: 4px 0; padding: 8px; }
-    button { cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; }
-    button:hover { background-color: #0056b3; }
-    button.danger { background-color: #dc3545; }
-    button.danger:hover { background-color: #c82333; }
-    code { background: #f6f6f6; padding: 2px 4px; color: #333; }
-    
-    .tabs { display: flex; border-bottom: 2px solid #ddd; margin-bottom: 20px; }
-    .tab { padding: 10px 20px; cursor: pointer; border: none; background: none; font-size: 16px; color: #333; }
-    .tab.active { border-bottom: 3px solid #007bff; color: #007bff; font-weight: bold; }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-    
-    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background-color: #f2f2f2; }
-    tr:hover { background-color: #f5f5f5; }
-    
-    .form-group { margin-bottom: 15px; }
-    .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-    .form-group input, .form-group select { width: 100%; max-width: 400px; }
-    
-    .status-badge { padding: 4px 8px; border-radius: 3px; font-size: 0.85em; }
-    .status-pending { background-color: #fff3cd; color: #856404; }
-    .status-preparing { background-color: #cce5ff; color: #004085; }
-    .status-delivering { background-color: #d1ecf1; color: #0c5460; }
-    .status-delivered { background-color: #d4edda; color: #155724; }
-    .status-cancelled { background-color: #f8d7da; color: #721c24; }
-    
-    .actions { display: flex; gap: 5px; }
-  </style>
 </head>
 <body>
-  <h1>Admin Panel</h1>
-  <p><a href="/home">Home</a> | <a href="/login?logout=1">Log out</a></p>
+  <center>
+    <h1>Admin Panel</h1>
+    <p><a href="/home">Home</a> | <a href="/login?logout=1">Log out</a></p>
+    <hr>
 
   <input id="adm-user" type="hidden" value="admin" />
   <input id="adm-pass" type="hidden" value="admin" />
 
-  <div class="tabs">
-    <button class="tab active" onclick="showTab('users')">Users</button>
-    <button class="tab" onclick="showTab('orders')">Orders</button>
-    <button class="tab" onclick="showTab('delivery')">Delivery Persons</button>
-    <button class="tab" onclick="showTab('pizzas')">Pizzas</button>
-    <button class="tab" onclick="showTab('ingredients')">Ingredients</button>
-  </div>
+  <p>
+    <button onclick="showTab('users')">Users</button>
+    <button onclick="showTab('orders')">Orders</button>
+    <button onclick="showTab('delivery')">Delivery Persons</button>
+    <button onclick="showTab('pizzas')">Pizzas</button>
+    <button onclick="showTab('ingredients')">Ingredients</button>
+  </p>
 
   <!-- Users Tab -->
-  <div id="users-tab" class="tab-content active">
+  <div id="users-tab">
     <h2>User Management</h2>
     
     <button onclick="loadUsers()">Refresh Users List</button>
     <div id="users-list"></div>
     
     <h3>Create New Customer</h3>
-    <div class="form-group">
-      <label>Username:</label>
-      <input id="new-user-username" type="text" placeholder="Username" />
-    </div>
-    <div class="form-group">
-      <label>Password:</label>
-      <input id="new-user-password" type="password" placeholder="Password" />
-    </div>
-    <div class="form-group">
-      <label>Name:</label>
-      <input id="new-user-name" type="text" placeholder="Full Name" />
-    </div>
-    <div class="form-group">
-      <label>Gender:</label>
-      <input id="new-user-gender" type="text" placeholder="Gender" />
-    </div>
-    <div class="form-group">
-      <label>Birth Date:</label>
-      <input id="new-user-birthdate" type="date" />
-      <label><input id="new-user-no-birthdate" type="checkbox" /> No birth date</label>
-    </div>
-    <div class="form-group">
-      <label>Address:</label>
-      <input id="new-user-address" type="text" placeholder="Address" />
-    </div>
-    <div class="form-group">
-      <label>Postal Code:</label>
-      <input id="new-user-postal" type="text" placeholder="Postal Code" />
-    </div>
+    <table>
+      <tr><td><b>Username:</b></td></tr>
+      <tr><td><input id="new-user-username" type="text" /></td></tr>
+      <tr><td><b>Password:</b></td></tr>
+      <tr><td><input id="new-user-password" type="password" /></td></tr>
+      <tr><td><b>Name:</b></td></tr>
+      <tr><td><input id="new-user-name" type="text" /></td></tr>
+      <tr><td><b>Gender:</b></td></tr>
+      <tr><td><input id="new-user-gender" type="text" /></td></tr>
+      <tr><td><b>Birth Date:</b></td></tr>
+      <tr><td><input id="new-user-birthdate" type="date" /></td></tr>
+      <tr><td><input id="new-user-no-birthdate" type="checkbox" /> No birth date</td></tr>
+      <tr><td><b>Address:</b></td></tr>
+      <tr><td><input id="new-user-address" type="text" /></td></tr>
+      <tr><td><b>Postal Code:</b></td></tr>
+      <tr><td><input id="new-user-postal" type="text" /></td></tr>
+    </table>
     
     <button onclick="createCustomer()">Create Customer</button>
   </div>
 
   <!-- Orders Tab -->
-  <div id="orders-tab" class="tab-content">
+  <div id="orders-tab" style="display:none;">
     <h2>Order Management</h2>
     
     <button onclick="loadOrders()">Refresh Orders List</button>
@@ -106,69 +60,65 @@
   </div>
 
   <!-- Delivery Persons Tab -->
-  <div id="delivery-tab" class="tab-content">
+  <div id="delivery-tab" style="display:none;">
     <h2>Delivery Person Management</h2>
     
     <button onclick="loadDeliveryPersons()">Refresh Delivery Persons List</button>
     <div id="delivery-list"></div>
     
     <h3>Create Delivery Person</h3>
-    <div class="form-group">
-      <label>Username:</label>
-      <input id="new-delivery-username" type="text" placeholder="Username" />
-    </div>
-    <div class="form-group">
-      <label>Password:</label>
-      <input id="new-delivery-password" type="password" placeholder="Password" />
-    </div>
-    <div class="form-group">
-      <label>Name:</label>
-      <input id="new-delivery-name" type="text" placeholder="Full Name" />
-    </div>
+    <table>
+      <tr><td><b>Username:</b></td></tr>
+      <tr><td><input id="new-delivery-username" type="text" /></td></tr>
+      <tr><td><b>Password:</b></td></tr>
+      <tr><td><input id="new-delivery-password" type="password" /></td></tr>
+      <tr><td><b>Name:</b></td></tr>
+      <tr><td><input id="new-delivery-name" type="text" /></td></tr>
+    </table>
     
     <button onclick="createDeliveryPerson()">Create Delivery Person</button>
   </div>
 
   <!-- Pizzas Tab -->
-  <div id="pizzas-tab" class="tab-content">
+  <div id="pizzas-tab" style="display:none;">
     <h2>Pizzas</h2>
-    <div>
-      <button onclick="listPizzas()">List pizzas</button>
-      <pre id="pizzas-list"></pre>
-    </div>
-    <div>
-      <h3>Create pizza</h3>
-      <input id="pizza-name" placeholder="Pizza name" />
-      <input id="pizza-ingredients" placeholder='Ingredients (comma separated)' />
-      <button onclick="createPizza()">Create</button>
-    </div>
-    <div>
-      <h3>Delete pizza</h3>
-      <input id="pizza-del-id" type="number" placeholder="Pizza ID" />
-      <button onclick="deletePizza()">Delete</button>
-    </div>
+    <button onclick="listPizzas()">List pizzas</button>
+    <pre id="pizzas-list"></pre>
+    
+    <h3>Create pizza</h3>
+    <table>
+      <tr><td>Pizza name:</td></tr>
+      <tr><td><input id="pizza-name" /></td></tr>
+      <tr><td>Ingredients (comma separated):</td></tr>
+      <tr><td><input id="pizza-ingredients" /></td></tr>
+    </table>
+    <button onclick="createPizza()">Create</button>
+    
+    <h3>Delete pizza</h3>
+    <input id="pizza-del-id" type="number" placeholder="Pizza ID" />
+    <button onclick="deletePizza()">Delete</button>
   </div>
 
   <!-- Ingredients Tab -->
-  <div id="ingredients-tab" class="tab-content">
+  <div id="ingredients-tab" style="display:none;">
     <h2>Ingredients</h2>
-    <div>
-      <button onclick="listIngredients()">List ingredients</button>
-      <pre id="ingredients-list"></pre>
-    </div>
-    <div>
-      <h3>Create ingredient</h3>
-      <input id="ingr-name" placeholder="Name" />
-      <input id="ingr-cost" type="number" placeholder="Cost (cents)" />
-      <label><input id="ingr-meat" type="checkbox" /> Has meat</label>
-      <label><input id="ingr-animal" type="checkbox" /> Has animal products</label>
-      <button onclick="createIngredient()">Create</button>
-    </div>
-    <div>
-      <h3>Delete ingredient</h3>
-      <input id="ingr-del-id" type="number" placeholder="Ingredient ID" />
-      <button onclick="deleteIngredient()">Delete</button>
-    </div>
+    <button onclick="listIngredients()">List ingredients</button>
+    <pre id="ingredients-list"></pre>
+    
+    <h3>Create ingredient</h3>
+    <table>
+      <tr><td>Name:</td></tr>
+      <tr><td><input id="ingr-name" /></td></tr>
+      <tr><td>Cost (cents):</td></tr>
+      <tr><td><input id="ingr-cost" type="number" /></td></tr>
+      <tr><td><input id="ingr-meat" type="checkbox" /> Has meat</td></tr>
+      <tr><td><input id="ingr-animal" type="checkbox" /> Has animal products</td></tr>
+    </table>
+    <button onclick="createIngredient()">Create</button>
+    
+    <h3>Delete ingredient</h3>
+    <input id="ingr-del-id" type="number" placeholder="Ingredient ID" />
+    <button onclick="deleteIngredient()">Delete</button>
   </div>
 
   <script>
@@ -181,12 +131,14 @@
 
     function showTab(tabName) {
       // Hide all tabs
-      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      document.getElementById('users-tab').style.display = 'none';
+      document.getElementById('orders-tab').style.display = 'none';
+      document.getElementById('delivery-tab').style.display = 'none';
+      document.getElementById('pizzas-tab').style.display = 'none';
+      document.getElementById('ingredients-tab').style.display = 'none';
       
       // Show selected tab
-      document.getElementById(tabName + '-tab').classList.add('active');
-      event.target.classList.add('active');
+      document.getElementById(tabName + '-tab').style.display = 'block';
       
       // Auto-load data for the tab
       if (tabName === 'users') loadUsers();
@@ -220,7 +172,7 @@
         return;
       }
       
-      let html = '<table><tr><th>ID</th><th>Username</th><th>Role</th><th>Name</th><th>Gender</th><th>Address</th><th>Actions</th></tr>';
+      let html = '<center><table border="1"><tr><th>ID</th><th>Username</th><th>Role</th><th>Name</th><th>Gender</th><th>Address</th><th>Actions</th></tr>';
       users.forEach(user => {
         html += `<tr>
           <td>${user.id}</td>
@@ -229,12 +181,12 @@
           <td>${user.name}</td>
           <td>${user.gender}</td>
           <td>${user.address}</td>
-          <td class="actions">
-            <button class="danger" onclick="deleteUser(${user.id}, '${user.username}')">Delete</button>
+          <td>
+            <button onclick="deleteUser(${user.id}, '${user.username}')">Delete</button>
           </td>
         </tr>`;
       });
-      html += '</table>';
+      html += '</table></center>';
       container.innerHTML = html;
     }
 
@@ -361,7 +313,7 @@
         return;
       }
       
-      let html = '<table><tr><th>ID</th><th>Customer</th><th>Date</th><th>Status</th><th>Address</th><th>Postal Code</th><th>Actions</th></tr>';
+      let html = '<center><table border="1"><tr><th>ID</th><th>Customer</th><th>Date</th><th>Status</th><th>Address</th><th>Postal Code</th><th>Actions</th></tr>';
       orders.forEach(order => {
         const date = new Date(order.timestamp).toLocaleString();
         html += `<tr>
@@ -370,22 +322,20 @@
           <td>${date}</td>
           <td>
             <select onchange="updateOrderStatus(${order.id}, this.value)">
-              <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>Pending</option>
-              <option value="preparing" ${order.status === 'preparing' ? 'selected' : ''}>Preparing</option>
-              <option value="delivering" ${order.status === 'delivering' ? 'selected' : ''}>Delivering</option>
-              <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>Delivered</option>
-              <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+              <option value="IN_PROGRESS" ${order.status === 'IN_PROGRESS' ? 'selected' : ''}>In Progress</option>
+              <option value="DELIVERED" ${order.status === 'DELIVERED' ? 'selected' : ''}>Delivered</option>
+              <option value="FAILED" ${order.status === 'FAILED' ? 'selected' : ''}>Failed</option>
             </select>
           </td>
           <td>${order.delivery_address}</td>
           <td>${order.postal_code}</td>
-          <td class="actions">
+          <td>
             <button onclick="viewOrderDetails(${order.id})">View</button>
-            <button class="danger" onclick="deleteOrder(${order.id})">Delete</button>
+            <button onclick="deleteOrder(${order.id})">Delete</button>
           </td>
         </tr>`;
       });
-      html += '</table>';
+      html += '</table></center>';
       container.innerHTML = html;
     }
 
@@ -464,18 +414,18 @@
         return;
       }
       
-      let html = '<table><tr><th>ID</th><th>Username</th><th>Name</th><th>Actions</th></tr>';
+      let html = '<center><table border="1"><tr><th>ID</th><th>Username</th><th>Name</th><th>Actions</th></tr>';
       persons.forEach(person => {
         html += `<tr>
           <td>${person.id}</td>
           <td>${person.username}</td>
           <td>${person.name}</td>
-          <td class="actions">
-            <button class="danger" onclick="deleteDeliveryPerson(${person.id}, '${person.name}')">Delete</button>
+          <td>
+            <button onclick="deleteDeliveryPerson(${person.id}, '${person.name}')">Delete</button>
           </td>
         </tr>`;
       });
-      html += '</table>';
+      html += '</table></center>';
       container.innerHTML = html;
     }
 
@@ -557,5 +507,6 @@
     // Load initial data
     loadUsers();
   </script>
+  </center>
 </body>
 </html>

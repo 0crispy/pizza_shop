@@ -4,65 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Your account</title>
-   <style>
-        .orders-section {
-            margin-top: 30px;
-            border-top: 2px solid #ccc;
-            padding-top: 20px;
-        }
-        .order-item {
-            border: 1px solid #ddd;
-            padding: 15px;
-            margin-bottom: 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .order-item:hover {
-            background-color: #f5f5f5;
-        }
-        .order-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .order-id {
-            font-weight: bold;
-            font-size: 1.1em;
-        }
-        .order-status {
-            padding: 5px 10px;
-            border-radius: 3px;
-            font-size: 0.9em;
-        }
-        .status-pending { background-color: #fff3cd; color: #856404; }
-        .status-preparing { background-color: #cce5ff; color: #004085; }
-        .status-delivering { background-color: #d1ecf1; color: #0c5460; }
-        .status-delivered { background-color: #d4edda; color: #155724; }
-        .status-cancelled { background-color: #f8d7da; color: #721c24; }
-        .order-info {
-            font-size: 0.9em;
-            color: #666;
-        }
-        .no-orders {
-            text-align: center;
-            color: #999;
-            padding: 30px;
-        }
-        .view-details-btn {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 0.9em;
-        }
-        .view-details-btn:hover {
-            background-color: #0056b3;
-        }
-   </style>
    <script>
         function logout(){
             try { sessionStorage.removeItem('username'); sessionStorage.removeItem('password'); } catch(_){}
@@ -109,9 +50,8 @@
             const container = document.getElementById('orders-list');
             container.innerHTML = '';
             
-            orders.forEach(order => {
+            orders.forEach((order, index) => {
                 const orderDiv = document.createElement('div');
-                orderDiv.className = 'order-item';
                 
                 const date = new Date(order.timestamp);
                 const formattedDate = date.toLocaleString('en-US', {
@@ -124,18 +64,13 @@
                 });
                 
                 orderDiv.innerHTML = `
-                    <div class="order-header">
-                        <span class="order-id">Order #${order.id}</span>
-                        <span class="order-status status-${order.status}">${order.status.toUpperCase()}</span>
-                    </div>
-                    <div class="order-info">
-                        <div><strong>Date:</strong> ${formattedDate}</div>
-                        <div><strong>Address:</strong> ${order.delivery_address}</div>
-                        <div><strong>Postal Code:</strong> ${order.postal_code}</div>
-                    </div>
-                    <div style="margin-top: 10px;">
-                        <button class="view-details-btn" onclick="viewOrderDetails(${order.id})">View Details</button>
-                    </div>
+                    <hr>
+                    <p><b>Order #${order.id}</b> - ${order.status}</p>
+                    <p><i>Date:</i> ${formattedDate}</p>
+                    <p><i>Address:</i> ${order.delivery_address}</p>
+                    <p><i>Postal Code:</i> ${order.postal_code}</p>
+                    <button onclick="viewOrderDetails(${order.id})">View Details</button>
+                    <br>
                 `;
                 
                 container.appendChild(orderDiv);
@@ -196,56 +131,55 @@
     </script>
 </head>
 <body>
+  <center>
     <nav>
-        <a href="/home">Home</a>
-        <a href="/account">Account</a>
-        <a id="admin-link" href="/admin" style="display:none;">Admin Panel</a>
-        <a href="/cart">Cart</a>
-        <a href="#" onclick="logout(); return false;">Log out</a>
+      <a href="/home">Home</a> |
+      <a href="/account">Account</a> |
+      <a id="admin-link" href="/admin" style="display:none;">Admin</a>
+      <a href="/cart">Cart</a> |
+      <a href="#" onclick="logout(); return false;">Log out</a>
     </nav>
+    <hr>
 
-    <main>
-        <h1>Your account</h1>
-        <!-- Admin view: only username and password -->
-        <div id="admin-section" style="display:none;">
-            <h3>Admin profile</h3>
-            <label for="admin-username">Username:</label><br />
-            <input type="text" id="admin-username" disabled /><br />
-            <label for="admin-password">Password:</label><br />
-            <input type="password" id="admin-password" disabled /><br />
-        </div>
+    <h1>Your Account</h1>
+    
+    <!-- Admin view: only username and password -->
+    <div id="admin-section" style="display:none;">
+      <h3>Admin profile</h3>
+      <table>
+        <tr><td><b>Username:</b></td></tr>
+        <tr><td><input type="text" id="admin-username" disabled /></td></tr>
+        <tr><td><b>Password:</b></td></tr>
+        <tr><td><input type="password" id="admin-password" disabled /></td></tr>
+      </table>
+    </div>
 
-        <!-- Customer view: full details -->
-        <div id="customer-section" style="display:none;">
-            <h2>Account Details</h2>
-            <label for="username">Username:</label><br />
-            <input type="text" id="username" disabled /><br />
+    <!-- Customer view: full details -->
+    <div id="customer-section" style="display:none;">
+      <h2>Account Details</h2>
+      <table>
+        <tr><td><b>Username:</b></td></tr>
+        <tr><td><input type="text" id="username" disabled /></td></tr>
+        <tr><td><b>Name:</b></td></tr>
+        <tr><td><input type="text" id="name" disabled /></td></tr>
+        <tr><td><b>Gender:</b></td></tr>
+        <tr><td><input type="text" id="gender" disabled /></td></tr>
+        <tr><td><b>Birth date:</b></td></tr>
+        <tr><td><input type="text" id="birth_date" disabled /></td></tr>
+        <tr><td><b>Address:</b></td></tr>
+        <tr><td><input type="text" id="address" disabled /></td></tr>
+        <tr><td><b>Postal code:</b></td></tr>
+        <tr><td><input type="text" id="postcode" disabled /></td></tr>
+      </table>
 
-            <label for="name">Name:</label><br />
-            <input type="text" id="name" disabled /><br />
+      <hr>
+      <h2>Order History</h2>
+      <div id="orders-list">
+        <p><i>Loading orders...</i></p>
+      </div>
+    </div>
 
-            <label for="gender">Gender:</label><br />
-            <input type="text" id="gender" disabled /><br />
-
-            <label for="birth_date">Birth date:</label><br />
-            <input type="text" id="birth_date" disabled /><br />
-
-            <label for="address">Address:</label><br />
-            <input type="text" id="address" disabled /><br />
-
-            <label for="postcode">Postal code:</label><br />
-            <input type="text" id="postcode" disabled /><br />
-
-            <!-- Order History Section -->
-            <div class="orders-section">
-                <h2>Order History</h2>
-                <div id="orders-list">
-                    <div class="no-orders">Loading orders...</div>
-                </div>
-            </div>
-        </div>
-
-        <p id="error"></p>
-    </main>
+    <p id="error"></p>
+  </center>
 </body>
 </html>

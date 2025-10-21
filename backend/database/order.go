@@ -24,10 +24,13 @@ type OrderPizza struct {
 }
 
 type OrderExtraItem struct {
-	ID          int `json:"id"`
-	OrderID     int `json:"order_id"`
-	ExtraItemID int `json:"extra_item_id"`
-	Quantity    int `json:"quantity"`
+	ID            int     `json:"id"`
+	OrderID       int     `json:"order_id"`
+	ExtraItemID   int     `json:"extra_item_id"`
+	ExtraItemName string  `json:"extra_item_name"`
+	Category      string  `json:"category"`
+	Price         float64 `json:"price"`
+	Quantity      int     `json:"quantity"`
 }
 
 type OrderDetails struct {
@@ -231,7 +234,12 @@ func GetOrderDetails(orderID int) (*OrderDetails, error) {
 		details.Pizzas = append(details.Pizzas, op)
 	}
 
-	extraQuery := `SELECT id, order_id, extra_item_id, quantity FROM order_extra_item WHERE order_id = ?`
+	extraQuery := `
+		SELECT oei.id, oei.order_id, oei.extra_item_id, ei.name, ei.category, ei.price, oei.quantity 
+		FROM order_extra_item oei
+		JOIN extra_item ei ON oei.extra_item_id = ei.id
+		WHERE oei.order_id = ?
+	`
 	extraRows, err := DATABASE.Query(extraQuery, orderID)
 	if err != nil {
 		return nil, err
@@ -240,7 +248,7 @@ func GetOrderDetails(orderID int) (*OrderDetails, error) {
 
 	for extraRows.Next() {
 		var oe OrderExtraItem
-		err := extraRows.Scan(&oe.ID, &oe.OrderID, &oe.ExtraItemID, &oe.Quantity)
+		err := extraRows.Scan(&oe.ID, &oe.OrderID, &oe.ExtraItemID, &oe.ExtraItemName, &oe.Category, &oe.Price, &oe.Quantity)
 		if err != nil {
 			return nil, err
 		}
@@ -258,6 +266,7 @@ func GetOrderDetails(orderID int) (*OrderDetails, error) {
 func calculateOrderTotal(details *OrderDetails) (float64, error) {
 	total := 0.0
 
+	// Add pizza prices
 	for _, op := range details.Pizzas {
 		pizza, err := GetPizzaByID(op.PizzaID)
 		if err != nil {
@@ -269,6 +278,11 @@ func calculateOrderTotal(details *OrderDetails) (float64, error) {
 		}
 		priceFloat, _ := info.Cost.Float64()
 		total += priceFloat * float64(op.Quantity)
+	}
+
+	// Add extra item prices
+	for _, oe := range details.ExtraItems {
+		total += oe.Price * float64(oe.Quantity)
 	}
 
 	return total, nil
@@ -290,7 +304,7 @@ func DeleteOrder(orderID int) error {
 func GetAllOrders() ([]Order, error) {
 	query := `
 		SELECT o.id, o.customer_id, c.name as customer_name, o.timestamp, o.status, o.postal_code, o.delivery_address
-		FROM ` + "`order`" + ` o
+		FROM orders o
 		LEFT JOIN customer c ON o.customer_id = c.id
 		ORDER BY o.timestamp DESC
 	`
