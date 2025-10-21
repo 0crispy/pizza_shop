@@ -418,11 +418,11 @@ func DeleteUser(userID int) error {
 		err = tx.QueryRow("SELECT id FROM customer WHERE user_id = ?", userID).Scan(&customerID)
 		if err == nil {
 			// Delete orders and order items for this customer
-			_, err = tx.Exec("DELETE op FROM order_pizza op INNER JOIN `order` o ON op.order_id = o.id WHERE o.customer_id = ?", customerID)
+			_, err = tx.Exec("DELETE op FROM order_pizza op INNER JOIN `orders` o ON op.order_id = o.id WHERE o.customer_id = ?", customerID)
 			if err != nil {
 				return err
 			}
-			_, err = tx.Exec("DELETE FROM `order` WHERE customer_id = ?", customerID)
+			_, err = tx.Exec("DELETE FROM `orders` WHERE customer_id = ?", customerID)
 			if err != nil {
 				return err
 			}

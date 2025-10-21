@@ -61,7 +61,7 @@ func CreateOrderWithTransaction(customerID int, deliveryAddress, postalCode stri
 
 	// Create the order
 	query := `
-		INSERT INTO ` + "`order`" + ` (customer_id, delivery_address, postal_code, status, timestamp)
+		INSERT INTO ` + "`orders`" + ` (customer_id, delivery_address, postal_code, status, timestamp)
 		VALUES (?, ?, ?, 'pending', NOW())
 	`
 	result, err := tx.Exec(query, customerID, deliveryAddress, postalCode)
@@ -136,7 +136,7 @@ func AddExtraItemToOrder(orderID, extraItemID, quantity int) error {
 func GetOrdersByCustomer(customerID int) ([]Order, error) {
 	query := `
 		SELECT id, customer_id, timestamp, status, postal_code, delivery_address
-		FROM ` + "`order`" + `
+		FROM ` + "`orders`" + `
 		WHERE customer_id = ?
 		ORDER BY timestamp DESC
 	`
@@ -163,7 +163,7 @@ func GetOrderByID(orderID int) (*Order, error) {
 	var order Order
 	query := `
 		SELECT id, customer_id, timestamp, status, postal_code, delivery_address
-		FROM ` + "`order`" + `
+		FROM ` + "`orders`" + `
 		WHERE id = ?
 	`
 	err := DATABASE.QueryRow(query, orderID).Scan(
@@ -186,7 +186,7 @@ func GetOrderDetails(orderID int) (*OrderDetails, error) {
 
 	query := `
 		SELECT o.id, o.customer_id, c.name, o.timestamp, o.status, o.postal_code, o.delivery_address
-		FROM ` + "`order`" + ` o
+		FROM ` + "`orders`" + ` o
 		LEFT JOIN customer c ON o.customer_id = c.id
 		WHERE o.id = ?
 	`
@@ -275,13 +275,13 @@ func calculateOrderTotal(details *OrderDetails) (float64, error) {
 }
 
 func UpdateOrderStatus(orderID int, status string) error {
-	query := `UPDATE ` + "`order`" + ` SET status = ? WHERE id = ?`
+	query := `UPDATE ` + "`orders`" + ` SET status = ? WHERE id = ?`
 	_, err := DATABASE.Exec(query, status, orderID)
 	return err
 }
 
 func DeleteOrder(orderID int) error {
-	query := `DELETE FROM ` + "`order`" + ` WHERE id = ?`
+	query := `DELETE FROM ` + "`orders`" + ` WHERE id = ?`
 	_, err := DATABASE.Exec(query, orderID)
 	return err
 }

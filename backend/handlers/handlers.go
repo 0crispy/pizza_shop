@@ -511,6 +511,7 @@ func CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 		nil,
 	)
 	if err != nil {
+		fmt.Println(err)
 		type Msg struct {
 			Ok    bool   `json:"ok"`
 			Error string `json:"error"`
