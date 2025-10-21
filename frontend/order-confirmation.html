@@ -118,7 +118,7 @@
         html += '<tr>';
         html += '<td><b>' + pizza.pizza_name + '</b></td>';
         html += '<td align="center">' + pizza.quantity + '</td>';
-        html += '<td align="right">-</td>';
+        html += '<td align="right">$' + (pizza.price * pizza.quantity).toFixed(2) + '</td>';
         html += '</tr>';
       });
       

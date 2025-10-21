@@ -77,7 +77,6 @@ func AdminHandler(w http.ResponseWriter, r *http.Request) {
 		username = userCookie.Value
 		password = passCookie.Value
 	}
-
 	users, _ := database.GetAllUsers()
 	orders, _ := database.GetAllOrders()
 	deliveryPersons, _ := database.GetAllDeliveryPersons()

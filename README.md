@@ -17,6 +17,18 @@ go build backend/main.go
 ./main
 ```
 
+## Generate Test Data
+
+To populate your database with sample customers, delivery people, and orders:
+
+```bash
+go run tools/generate_test_data.go
+```
+
+This creates 20 customers, 5 delivery people, and 30 orders. All test accounts use password: `password123`
+
+See [tools/README.md](tools/README.md) for more details.
+
 ## TODO:
 
 - [x] my sql setup
@@ -53,8 +65,8 @@ go build backend/main.go
     - [ ] Admin create discount codes
     - [ ] Birthday discount code
     - [ ] Applying discount code in order
-- [ ] Testing
-    - [ ] Code for generating sample orders and sample accounts
+- [x] Testing
+    - [x] Code for generating sample orders and sample accounts
 - [ ] Reports
     - [ ] Undelivered orders
     - [ ] Top 3 pizzas sold in the past month

@@ -16,11 +16,12 @@ type Order struct {
 }
 
 type OrderPizza struct {
-	ID        int    `json:"id"`
-	OrderID   int    `json:"order_id"`
-	PizzaID   int    `json:"pizza_id"`
-	PizzaName string `json:"pizza_name"`
-	Quantity  int    `json:"quantity"`
+	ID        int     `json:"id"`
+	OrderID   int     `json:"order_id"`
+	PizzaID   int     `json:"pizza_id"`
+	PizzaName string  `json:"pizza_name"`
+	Quantity  int     `json:"quantity"`
+	Price     float64 `json:"price"`
 }
 
 type OrderExtraItem struct {
@@ -223,6 +224,14 @@ func GetOrderDetails(orderID int) (*OrderDetails, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		info, err := GetPizzaInformation(op.PizzaName)
+		if err != nil {
+			return nil, err
+		}
+		priceFloat, _ := info.Cost.Float64()
+		op.Price = priceFloat
+
 		details.Pizzas = append(details.Pizzas, op)
 	}
 
